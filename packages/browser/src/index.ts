@@ -1,6 +1,5 @@
-export { createBroadcast, createPlayer } from "./Daydream";
-export { Broadcast } from "./Broadcast";
-export { Player } from "./Player";
+export { Broadcast, createBroadcast } from "./Broadcast";
+export { Player, createPlayer } from "./Player";
 
 export {
   BaseDaydreamError,

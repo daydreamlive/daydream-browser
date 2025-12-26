@@ -1,6 +1,7 @@
 import type {
   PlayerState,
   PlayerEventMap,
+  PlayerOptions,
   ReconnectConfig,
   DaydreamError,
 } from "./types";
@@ -214,5 +215,16 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     const delay = 500 * Math.pow(2, exponentialAttempt - 1);
     return Math.min(delay, maxDelay);
   }
+}
+
+export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
+  return new Player({
+    whepUrl,
+    reconnect: options?.reconnect,
+    whepConfig: {
+      onStats: options?.onStats,
+      statsIntervalMs: options?.statsIntervalMs,
+    },
+  });
 }
 

@@ -1,6 +1,7 @@
 import type {
   BroadcastState,
   BroadcastEventMap,
+  BroadcastOptions,
   ReconnectConfig,
   DaydreamError,
 } from "./types";
@@ -196,4 +197,21 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
       }
     }, delay);
   }
+}
+
+export function createBroadcast(options: BroadcastOptions): Broadcast {
+  const { whipUrl, stream, reconnect, video, onStats, statsIntervalMs } =
+    options;
+
+  return new Broadcast({
+    whipUrl,
+    stream,
+    reconnect,
+    whipConfig: {
+      videoBitrate: video?.bitrate,
+      maxFramerate: video?.maxFramerate,
+      onStats,
+      statsIntervalMs,
+    },
+  });
 }
