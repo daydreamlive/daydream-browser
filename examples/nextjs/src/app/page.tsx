@@ -14,19 +14,44 @@ function StatusDot({ active, color }: { active: boolean; color: string }) {
   );
 }
 
+function Spinner() {
+  return (
+    <svg
+      className="w-6 h-6 animate-spin text-zinc-500"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
+}
+
 function BroadcasterPanel({
   streamInfo,
-  onStreamCreated,
   onWhepUrlChange,
+  onStarted,
 }: {
   streamInfo: StreamInfo | null;
-  onStreamCreated: (info: StreamInfo) => void;
   onWhepUrlChange: (url: string | null) => void;
+  onStarted: () => void;
 }) {
   const [prompt, setPrompt] = useState("cyberpunk, high quality");
   const [isPending, startTransition] = useTransition();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const pendingStartRef = useRef<MediaStream | null>(null);
 
   const { state, whepUrl, error, start, stop } = useBroadcast({
     whipUrl: streamInfo?.whipUrl ?? "",
@@ -37,7 +62,16 @@ function BroadcasterPanel({
     onWhepUrlChange(whepUrl);
   }, [whepUrl, onWhepUrlChange]);
 
-  const handleCreate = useCallback(async () => {
+  useEffect(() => {
+    if (streamInfo && pendingStartRef.current && state === "idle") {
+      const mediaStream = pendingStartRef.current;
+      pendingStartRef.current = null;
+      start(mediaStream).catch(console.error);
+    }
+  }, [streamInfo, state, start]);
+
+  const handleStart = useCallback(async () => {
+    onStarted();
     startTransition(async () => {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -50,23 +84,20 @@ function BroadcasterPanel({
           videoRef.current.srcObject = mediaStream;
         }
 
-        const info = await createStream({ prompt });
-        onStreamCreated(info);
+        if (streamInfo) {
+          await start(mediaStream);
+        } else {
+          pendingStartRef.current = mediaStream;
+        }
       } catch (err) {
-        console.error("Failed to create stream:", err);
+        console.error("Failed to start broadcast:", err);
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
         }
       }
     });
-  }, [prompt, onStreamCreated]);
-
-  useEffect(() => {
-    if (streamInfo && streamRef.current && state === "idle") {
-      start(streamRef.current).catch(console.error);
-    }
-  }, [streamInfo, start, state]);
+  }, [streamInfo, start, onStarted]);
 
   const handleStop = useCallback(async () => {
     await stop();
@@ -154,11 +185,11 @@ function BroadcasterPanel({
         </div>
       ) : (
         <button
-          onClick={handleCreate}
+          onClick={handleStart}
           disabled={isConnecting || isPending}
           className="w-full px-4 py-2.5 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 disabled:opacity-50 transition-colors cursor-pointer"
         >
-          {isPending ? "Creating..." : isConnecting ? "Connecting..." : "Start"}
+          {isPending ? "Starting..." : isConnecting ? "Connecting..." : "Start"}
         </button>
       )}
 
@@ -167,13 +198,31 @@ function BroadcasterPanel({
   );
 }
 
-function PlayerPanel({ whepUrl }: { whepUrl: string | null }) {
+function PlayerPanel({
+  whepUrl,
+  started,
+}: {
+  whepUrl: string | null;
+  started: boolean;
+}) {
   const { state, error, videoRef } = usePlayer(whepUrl, {
     autoPlay: true,
     reconnect: { enabled: true, maxAttempts: 10, baseDelayMs: 300 },
   });
+  const [videoReady, setVideoReady] = useState(false);
 
   const isPlaying = state === "playing";
+  const showSpinner = started && !videoReady;
+
+  const handlePlaying = useCallback(() => {
+    setVideoReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!started) {
+      setVideoReady(false);
+    }
+  }, [started]);
 
   return (
     <div className="space-y-4">
@@ -190,20 +239,24 @@ function PlayerPanel({ whepUrl }: { whepUrl: string | null }) {
         <span className="text-xs text-zinc-400">{state}</span>
       </div>
 
-      <div className="aspect-square bg-zinc-900 rounded-lg overflow-hidden">
-        {!whepUrl ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-xs text-zinc-600">waiting...</span>
-          </div>
-        ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
-        )}
+      <div className="aspect-square bg-zinc-900 rounded-lg overflow-hidden relative">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          onPlaying={handlePlaying}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            videoReady ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <div
+          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+            showSpinner ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <Spinner />
+        </div>
       </div>
 
       {error && <p className="text-xs text-red-600">{error.message}</p>}
@@ -214,6 +267,29 @@ function PlayerPanel({ whepUrl }: { whepUrl: string | null }) {
 export default function Home() {
   const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
   const [whepUrl, setWhepUrl] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    createStream({ prompt: "cyberpunk, high quality" })
+      .then((info) => {
+        if (!cancelled) {
+          setStreamInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to create stream:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleStarted = useCallback(() => {
+    setStarted(true);
+  }, []);
 
   return (
     <main className="min-h-screen bg-white">
@@ -230,10 +306,10 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-8">
           <BroadcasterPanel
             streamInfo={streamInfo}
-            onStreamCreated={setStreamInfo}
             onWhepUrlChange={setWhepUrl}
+            onStarted={handleStarted}
           />
-          <PlayerPanel whepUrl={whepUrl} />
+          <PlayerPanel whepUrl={whepUrl} started={started} />
         </div>
       </div>
     </main>
