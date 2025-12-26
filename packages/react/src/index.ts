@@ -1,8 +1,9 @@
 export {
-  useBroadcaster,
-  type UseBroadcasterOptions,
-  type UseBroadcasterReturn,
-} from "./useBroadcaster";
+  useBroadcast,
+  type UseBroadcastOptions,
+  type UseBroadcastReturn,
+} from "./useBroadcast";
+
 export {
   usePlayer,
   type UsePlayerOptions,

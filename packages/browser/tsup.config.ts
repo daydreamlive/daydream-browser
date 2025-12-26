@@ -4,7 +4,8 @@ export default defineConfig({
   entry: ["src/index.ts"],
   format: ["cjs", "esm"],
   dts: true,
-  clean: true,
   sourcemap: true,
-  external: ["react", "@daydreamlive/browser", "@daydreamlive/sdk", "daydream-sdk"],
+  clean: true,
+  external: ["@daydreamlive/sdk", "daydream-sdk"],
 });
+

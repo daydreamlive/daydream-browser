@@ -1,103 +1,123 @@
 import {
-  useState,
   useCallback,
-  useRef,
   useEffect,
+  useRef,
+  useState,
   type RefObject,
 } from "react";
 import {
-  DaydreamPlayer,
-  type PlayerOptions,
+  createPlayer,
+  type Player,
   type PlayerState,
-} from "@daydreamlive/client";
+  type DaydreamError,
+  type ReconnectConfig,
+} from "@daydreamlive/browser";
 
-export interface UsePlayerOptions extends Omit<PlayerOptions, "videoElement"> {}
+export interface UsePlayerOptions {
+  reconnect?: ReconnectConfig;
+  autoPlay?: boolean;
+  onStats?: (report: RTCStatsReport) => void;
+  statsIntervalMs?: number;
+}
 
 export interface UsePlayerReturn {
-  state: PlayerState;
-  stream: MediaStream | null;
-  error: Error | null;
+  state: PlayerState | "idle";
+  error: DaydreamError | null;
   play: () => Promise<void>;
-  pause: () => void;
   stop: () => void;
   videoRef: RefObject<HTMLVideoElement | null>;
 }
 
-export function usePlayer(options: UsePlayerOptions): UsePlayerReturn {
-  const [state, setState] = useState<PlayerState>("idle");
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const playerRef = useRef<DaydreamPlayer | null>(null);
+export function usePlayer(
+  whepUrl: string | null,
+  options?: UsePlayerOptions
+): UsePlayerReturn {
+  const [state, setState] = useState<PlayerState | "idle">("idle");
+  const [error, setError] = useState<DaydreamError | null>(null);
+  const playerRef = useRef<Player | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const optionsRef = useRef(options);
+  const whepUrlRef = useRef(whepUrl);
 
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
   useEffect(() => {
+    whepUrlRef.current = whepUrl;
+  }, [whepUrl]);
+
+  useEffect(() => {
     return () => {
-      playerRef.current?.destroy();
+      playerRef.current?.stop();
     };
   }, []);
 
   const play = useCallback(async () => {
+    const currentWhepUrl = whepUrlRef.current;
+    if (!currentWhepUrl) {
+      return;
+    }
+
     setError(null);
 
     if (playerRef.current) {
-      if (playerRef.current.state === "paused") {
-        await videoRef.current?.play();
-        return;
+      playerRef.current.stop();
+    }
+
+    try {
+      const player = createPlayer(currentWhepUrl, {
+        reconnect: optionsRef.current?.reconnect,
+        onStats: optionsRef.current?.onStats,
+        statsIntervalMs: optionsRef.current?.statsIntervalMs,
+      });
+
+      playerRef.current = player;
+
+      player.on("stateChange", (newState) => {
+        setState(newState);
+      });
+
+      player.on("error", (err) => {
+        setError(err);
+      });
+
+      await player.connect();
+      setState(player.state);
+
+      if (videoRef.current) {
+        player.attachTo(videoRef.current);
+        if (optionsRef.current?.autoPlay !== false) {
+          try {
+            await videoRef.current.play();
+          } catch {
+            // Autoplay blocked
+          }
+        }
       }
-      playerRef.current.destroy();
-    }
-
-    const playerOptions: PlayerOptions = {
-      ...optionsRef.current,
-    };
-
-    if (videoRef.current) {
-      playerOptions.videoElement = videoRef.current;
-    }
-
-    const player = new DaydreamPlayer(playerOptions);
-    playerRef.current = player;
-
-    player.on("connecting", () => setState("connecting"));
-    player.on("connected", () => {
-      setState("connected");
-      setStream(player.stream);
-    });
-    player.on("playing", () => setState("playing"));
-    player.on("paused", () => setState("paused"));
-    player.on("ended", () => {
-      setState("ended");
-      setStream(null);
-    });
-    player.on("error", (err) => {
+    } catch (err) {
+      setError(err as DaydreamError);
       setState("error");
-      setError(err);
-    });
-    player.on("reconnecting", () => setState("connecting"));
-
-    await player.play();
-  }, []);
-
-  const pause = useCallback(() => {
-    playerRef.current?.pause();
+      throw err;
+    }
   }, []);
 
   const stop = useCallback(() => {
     playerRef.current?.stop();
-    setStream(null);
+    playerRef.current = null;
+    setState("idle");
   }, []);
+
+  useEffect(() => {
+    if (whepUrl && optionsRef.current?.autoPlay !== false && state === "idle") {
+      play().catch(() => {});
+    }
+  }, [whepUrl, play, state]);
 
   return {
     state,
-    stream,
     error,
     play,
-    pause,
     stop,
     videoRef,
   };

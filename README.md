@@ -1,62 +1,35 @@
-# Daydream Browser Client SDK
+# daydream-browser
 
-> ⚠️ **Under active development** — API may change without notice.
-
-JavaScript SDK for real-time AI video streaming.
+WebRTC streaming SDK for [Daydream](https://daydream.live) — real-time AI video processing.
 
 ## Packages
 
-| Package                | Description           |
-| ---------------------- | --------------------- |
-| `@daydreamlive/client` | Core WHIP/WHEP client |
-| `@daydreamlive/react`  | React hooks           |
-
-## Install
-
-```bash
-npm install @daydreamlive/client
-npm install @daydreamlive/react  # for React
-```
+| Package                                       | Description                             |
+| --------------------------------------------- | --------------------------------------- |
+| [`@daydreamlive/browser`](./packages/browser) | Core WebRTC client (framework-agnostic) |
+| [`@daydreamlive/react`](./packages/react)     | React hooks                             |
 
 ## Quick Start
 
-### Vanilla JS
-
-```js
-import { DaydreamBroadcaster, DaydreamPlayer } from "@daydreamlive/client";
-
-// Broadcast
-const broadcaster = new DaydreamBroadcaster({ whipUrl });
-broadcaster.on("connected", () => console.log("Live"));
-await broadcaster.publish(mediaStream);
-
-// Play
-const player = new DaydreamPlayer({ whepUrl, videoElement });
-player.on("playing", () => console.log("Playing"));
-await player.play();
-```
-
-### React
-
-```tsx
-import { useBroadcaster, usePlayer } from "@daydreamlive/react";
-
-function Broadcaster({ whipUrl }) {
-  const { state, publish, stop } = useBroadcaster({ whipUrl });
-  // ...
-}
-
-function Player({ whepUrl }) {
-  const { state, videoRef } = usePlayer({ whepUrl, autoplay: true });
-  return <video ref={videoRef} />;
-}
-```
-
-## Development
-
 ```bash
-npm install
-npm run build
+npm install @daydreamlive/browser
+# or with React
+npm install @daydreamlive/react
+```
+
+See [examples/nextjs](./examples/nextjs) for a full working example.
+
+## Architecture
+
+```
+Backend (your server)          Browser
+┌─────────────────────┐       ┌──────────────────────────┐
+│  daydream-sdk       │       │  @daydreamlive/browser   │
+│  - createStream()   │──────▶│  - WHIP (broadcast)      │
+│  - updateStream()   │       │  - WHEP (playback)       │
+└─────────────────────┘       └──────────────────────────┘
+        │                              │
+        └──────── whipUrl ─────────────┘
 ```
 
 ## License

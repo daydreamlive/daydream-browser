@@ -1,5 +1,12 @@
-import type { WHEPClientOptions } from "../types";
 import { DEFAULT_ICE_SERVERS } from "../types";
+import { ConnectionError, NetworkError } from "../errors";
+
+export interface WHEPClientConfig {
+  url: string;
+  iceServers?: RTCIceServer[];
+  onStats?: (report: RTCStatsReport) => void;
+  statsIntervalMs?: number;
+}
 
 export class WHEPClient {
   private url: string;
@@ -13,11 +20,11 @@ export class WHEPClient {
   private abortController: AbortController | null = null;
   private statsTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(options: WHEPClientOptions) {
-    this.url = options.url;
-    this.iceServers = options.iceServers ?? DEFAULT_ICE_SERVERS;
-    this.onStats = options.onStats;
-    this.statsIntervalMs = options.statsIntervalMs ?? 5000;
+  constructor(config: WHEPClientConfig) {
+    this.url = config.url;
+    this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
+    this.onStats = config.onStats;
+    this.statsIntervalMs = config.statsIntervalMs ?? 5000;
   }
 
   async connect(): Promise<MediaStream> {
@@ -61,8 +68,8 @@ export class WHEPClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
-        throw new Error(
-          `WHEP connection failed: ${response.status} ${response.statusText} ${errorText}`,
+        throw new ConnectionError(
+          `WHEP connection failed: ${response.status} ${response.statusText} ${errorText}`
         );
       }
 
@@ -79,7 +86,13 @@ export class WHEPClient {
       return this.stream;
     } catch (error) {
       clearTimeout(timeoutId);
-      throw error;
+      if (error instanceof ConnectionError) {
+        throw error;
+      }
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new NetworkError("Connection timeout");
+      }
+      throw new NetworkError("Failed to establish connection", error);
     }
   }
 
@@ -201,3 +214,4 @@ export class WHEPClient {
     }
   }
 }
+

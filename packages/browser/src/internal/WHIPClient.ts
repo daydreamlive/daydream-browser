@@ -1,9 +1,19 @@
-import type { WHIPClientOptions } from "../types";
 import {
   DEFAULT_ICE_SERVERS,
   DEFAULT_VIDEO_BITRATE,
   DEFAULT_AUDIO_BITRATE,
 } from "../types";
+import { ConnectionError, NetworkError } from "../errors";
+
+export interface WHIPClientConfig {
+  url: string;
+  iceServers?: RTCIceServer[];
+  videoBitrate?: number;
+  audioBitrate?: number;
+  maxFramerate?: number;
+  onStats?: (report: RTCStatsReport) => void;
+  statsIntervalMs?: number;
+}
 
 function preferH264(sdp: string): string {
   const lines = sdp.split("\r\n");
@@ -48,14 +58,14 @@ export class WHIPClient {
   private videoSender: RTCRtpSender | null = null;
   private audioSender: RTCRtpSender | null = null;
 
-  constructor(options: WHIPClientOptions) {
-    this.url = options.url;
-    this.iceServers = options.iceServers ?? DEFAULT_ICE_SERVERS;
-    this.videoBitrate = options.videoBitrate ?? DEFAULT_VIDEO_BITRATE;
-    this.audioBitrate = options.audioBitrate ?? DEFAULT_AUDIO_BITRATE;
-    this.maxFramerate = options.maxFramerate;
-    this.onStats = options.onStats;
-    this.statsIntervalMs = options.statsIntervalMs ?? 5000;
+  constructor(config: WHIPClientConfig) {
+    this.url = config.url;
+    this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
+    this.videoBitrate = config.videoBitrate ?? DEFAULT_VIDEO_BITRATE;
+    this.audioBitrate = config.audioBitrate ?? DEFAULT_AUDIO_BITRATE;
+    this.maxFramerate = config.maxFramerate;
+    this.onStats = config.onStats;
+    this.statsIntervalMs = config.statsIntervalMs ?? 5000;
   }
 
   async connect(stream: MediaStream): Promise<{ whepUrl: string | null }> {
@@ -104,8 +114,8 @@ export class WHIPClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
-        throw new Error(
-          `WHIP connection failed: ${response.status} ${response.statusText} ${errorText}`,
+        throw new ConnectionError(
+          `WHIP connection failed: ${response.status} ${response.statusText} ${errorText}`
         );
       }
 
@@ -125,7 +135,13 @@ export class WHIPClient {
       return { whepUrl: this.whepUrl };
     } catch (error) {
       clearTimeout(timeoutId);
-      throw error;
+      if (error instanceof ConnectionError) {
+        throw error;
+      }
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new NetworkError("Connection timeout");
+      }
+      throw new NetworkError("Failed to establish connection", error);
     }
   }
 
@@ -142,7 +158,7 @@ export class WHIPClient {
       if (!caps?.codecs?.length) return;
 
       const h264Codecs = caps.codecs.filter((c) =>
-        c.mimeType.toLowerCase().includes("h264"),
+        c.mimeType.toLowerCase().includes("h264")
       );
       if (h264Codecs.length) {
         transceiver.setCodecPreferences(h264Codecs);
@@ -237,12 +253,12 @@ export class WHIPClient {
 
   async replaceTrack(track: MediaStreamTrack): Promise<void> {
     if (!this.pc) {
-      throw new Error("Not connected");
+      throw new ConnectionError("Not connected");
     }
 
     const sender = track.kind === "video" ? this.videoSender : this.audioSender;
     if (!sender) {
-      throw new Error(`No sender found for track kind: ${track.kind}`);
+      throw new ConnectionError(`No sender found for track kind: ${track.kind}`);
     }
 
     await sender.replaceTrack(track);
@@ -323,3 +339,4 @@ export class WHIPClient {
     }
   }
 }
+
