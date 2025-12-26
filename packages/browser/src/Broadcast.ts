@@ -19,7 +19,7 @@ export interface BroadcastConfig {
 export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private _whepUrl: string | null = null;
   private _state: BroadcastState = "connecting";
-  private readonly stream: MediaStream;
+  private currentStream: MediaStream;
   private readonly reconnectConfig: ReconnectConfig;
   private readonly whipClient: WHIPClient;
 
@@ -33,7 +33,7 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
 
   constructor(config: BroadcastConfig) {
     super();
-    this.stream = config.stream;
+    this.currentStream = config.stream;
     this.reconnectConfig = {
       enabled: config.reconnect?.enabled ?? true,
       maxAttempts: config.reconnect?.maxAttempts ?? 5,
@@ -63,9 +63,13 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     return this.readyPromise;
   }
 
+  get stream(): MediaStream {
+    return this.currentStream;
+  }
+
   async connect(): Promise<void> {
     try {
-      const result = await this.whipClient.connect(this.stream);
+      const result = await this.whipClient.connect(this.currentStream);
       if (result.whepUrl) {
         this._whepUrl = result.whepUrl;
       }
@@ -98,6 +102,29 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     await this.whipClient.disconnect();
     this.setState("ended");
     this.clearListeners();
+  }
+
+  async replaceStream(newStream: MediaStream): Promise<void> {
+    if (!this.whipClient.isConnected()) {
+      this.currentStream = newStream;
+      return;
+    }
+
+    const videoTrack = newStream.getVideoTracks()[0];
+    const audioTrack = newStream.getAudioTracks()[0];
+
+    try {
+      if (videoTrack) {
+        await this.whipClient.replaceTrack(videoTrack);
+      }
+      if (audioTrack) {
+        await this.whipClient.replaceTrack(audioTrack);
+      }
+      this.currentStream = newStream;
+    } catch {
+      this.currentStream = newStream;
+      this.scheduleReconnect();
+    }
   }
 
   private setupConnectionMonitoring(): void {
@@ -185,7 +212,7 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
 
       try {
         await this.whipClient.disconnect();
-        const result = await this.whipClient.connect(this.stream);
+        const result = await this.whipClient.connect(this.currentStream);
         if (result.whepUrl) {
           this._whepUrl = result.whepUrl;
         }
@@ -200,8 +227,15 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
 }
 
 export function createBroadcast(options: BroadcastOptions): Broadcast {
-  const { whipUrl, stream, reconnect, video, onStats, statsIntervalMs } =
-    options;
+  const {
+    whipUrl,
+    stream,
+    reconnect,
+    video,
+    onStats,
+    statsIntervalMs,
+    onResponse,
+  } = options;
 
   return new Broadcast({
     whipUrl,
@@ -212,6 +246,7 @@ export function createBroadcast(options: BroadcastOptions): Broadcast {
       maxFramerate: video?.maxFramerate,
       onStats,
       statsIntervalMs,
+      onResponse,
     },
   });
 }

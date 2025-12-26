@@ -5,6 +5,34 @@ import {
 } from "../types";
 import { ConnectionError, NetworkError } from "../errors";
 
+const MAX_REDIRECT_CACHE_SIZE = 10;
+const redirectCache = new Map<string, URL>();
+const PLAYBACK_ID_PATTERN = /([/+])([^/+?]+)$/;
+const PLAYBACK_ID_PLACEHOLDER = "__PLAYBACK_ID__";
+
+function getCachedRedirect(key: string): URL | undefined {
+  const cached = redirectCache.get(key);
+  if (cached) {
+    redirectCache.delete(key);
+    redirectCache.set(key, cached);
+  }
+  return cached;
+}
+
+function setCachedRedirect(key: string, value: URL): void {
+  if (redirectCache.has(key)) {
+    redirectCache.delete(key);
+  } else if (redirectCache.size >= MAX_REDIRECT_CACHE_SIZE) {
+    const oldestKey = redirectCache.keys().next().value;
+    if (oldestKey) redirectCache.delete(oldestKey);
+  }
+  redirectCache.set(key, value);
+}
+
+export interface WHIPResponseResult {
+  whepUrl?: string;
+}
+
 export interface WHIPClientConfig {
   url: string;
   iceServers?: RTCIceServer[];
@@ -13,6 +41,7 @@ export interface WHIPClientConfig {
   maxFramerate?: number;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
+  onResponse?: (response: Response) => WHIPResponseResult | void;
 }
 
 function preferH264(sdp: string): string {
@@ -49,10 +78,10 @@ export class WHIPClient {
   private maxFramerate?: number;
   private onStats?: (report: RTCStatsReport) => void;
   private statsIntervalMs: number;
+  private onResponse?: (response: Response) => WHIPResponseResult | void;
 
   private pc: RTCPeerConnection | null = null;
   private resourceUrl: string | null = null;
-  private whepUrl: string | null = null;
   private abortController: AbortController | null = null;
   private statsTimer: ReturnType<typeof setInterval> | null = null;
   private videoSender: RTCRtpSender | null = null;
@@ -66,6 +95,7 @@ export class WHIPClient {
     this.maxFramerate = config.maxFramerate;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
+    this.onResponse = config.onResponse;
   }
 
   async connect(stream: MediaStream): Promise<{ whepUrl: string | null }> {
@@ -103,7 +133,9 @@ export class WHIPClient {
     const timeoutId = setTimeout(() => this.abortController?.abort(), 10000);
 
     try {
-      const response = await fetch(this.url, {
+      const fetchUrl = this.getUrlWithCachedRedirect();
+
+      const response = await fetch(fetchUrl, {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: this.pc.localDescription!.sdp,
@@ -115,16 +147,18 @@ export class WHIPClient {
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
         throw new ConnectionError(
-          `WHIP connection failed: ${response.status} ${response.statusText} ${errorText}`
+          `WHIP connection failed: ${response.status} ${response.statusText} ${errorText}`,
         );
       }
+
+      this.cacheRedirectIfNeeded(fetchUrl, response.url);
 
       const location = response.headers.get("location");
       if (location) {
         this.resourceUrl = new URL(location, this.url).toString();
       }
 
-      this.whepUrl = response.headers.get("livepeer-playback-url");
+      const responseResult = this.onResponse?.(response);
 
       const answerSdp = await response.text();
       await this.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
@@ -132,7 +166,7 @@ export class WHIPClient {
       await this.applyBitrateConstraints();
       this.startStatsTimer();
 
-      return { whepUrl: this.whepUrl };
+      return { whepUrl: responseResult?.whepUrl ?? null };
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof ConnectionError) {
@@ -158,7 +192,7 @@ export class WHIPClient {
       if (!caps?.codecs?.length) return;
 
       const h264Codecs = caps.codecs.filter((c) =>
-        c.mimeType.toLowerCase().includes("h264")
+        c.mimeType.toLowerCase().includes("h264"),
       );
       if (h264Codecs.length) {
         transceiver.setCodecPreferences(h264Codecs);
@@ -258,7 +292,9 @@ export class WHIPClient {
 
     const sender = track.kind === "video" ? this.videoSender : this.audioSender;
     if (!sender) {
-      throw new ConnectionError(`No sender found for track kind: ${track.kind}`);
+      throw new ConnectionError(
+        `No sender found for track kind: ${track.kind}`,
+      );
     }
 
     await sender.replaceTrack(track);
@@ -318,11 +354,6 @@ export class WHIPClient {
 
     this.cleanup();
     this.resourceUrl = null;
-    this.whepUrl = null;
-  }
-
-  getWhepUrl(): string | null {
-    return this.whepUrl;
   }
 
   getPeerConnection(): RTCPeerConnection | null {
@@ -338,5 +369,42 @@ export class WHIPClient {
       }
     }
   }
-}
 
+  isConnected(): boolean {
+    return this.pc !== null && this.pc.connectionState === "connected";
+  }
+
+  private getUrlWithCachedRedirect(): string {
+    const originalUrl = new URL(this.url);
+    const playbackIdMatch = originalUrl.pathname.match(PLAYBACK_ID_PATTERN);
+    const playbackId = playbackIdMatch?.[2];
+
+    const cachedTemplate = getCachedRedirect(this.url);
+    if (!cachedTemplate || !playbackId) {
+      return this.url;
+    }
+
+    const redirectedUrl = new URL(cachedTemplate);
+    redirectedUrl.pathname = cachedTemplate.pathname.replace(
+      PLAYBACK_ID_PLACEHOLDER,
+      playbackId,
+    );
+    return redirectedUrl.toString();
+  }
+
+  private cacheRedirectIfNeeded(requestUrl: string, responseUrl: string): void {
+    if (requestUrl === responseUrl) return;
+
+    try {
+      const actualRedirect = new URL(responseUrl);
+      const template = new URL(actualRedirect);
+      template.pathname = template.pathname.replace(
+        PLAYBACK_ID_PATTERN,
+        `$1${PLAYBACK_ID_PLACEHOLDER}`,
+      );
+      setCachedRedirect(this.url, template);
+    } catch {
+      // Invalid URL, skip caching
+    }
+  }
+}

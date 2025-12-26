@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  createBroadcast,
-  type Broadcast,
-  type BroadcastState,
-  type DaydreamError,
-  type ReconnectConfig,
-  type VideoConfig,
+import type {
+  Broadcast,
+  BroadcastOptions,
+  BroadcastState,
+  DaydreamError,
+  ReconnectConfig,
+  VideoConfig,
 } from "@daydreamlive/browser";
 
 export interface UseBroadcastOptions {
@@ -16,6 +16,8 @@ export interface UseBroadcastOptions {
   statsIntervalMs?: number;
 }
 
+export type BroadcastFactory = (options: BroadcastOptions) => Broadcast;
+
 export interface UseBroadcastReturn {
   state: BroadcastState | "idle";
   whepUrl: string | null;
@@ -24,16 +26,24 @@ export interface UseBroadcastReturn {
   stop: () => Promise<void>;
 }
 
-export function useBroadcast(options: UseBroadcastOptions): UseBroadcastReturn {
+export function useBroadcast(
+  options: UseBroadcastOptions,
+  factory: BroadcastFactory,
+): UseBroadcastReturn {
   const [state, setState] = useState<BroadcastState | "idle">("idle");
   const [whepUrl, setWhepUrl] = useState<string | null>(null);
   const [error, setError] = useState<DaydreamError | null>(null);
   const broadcastRef = useRef<Broadcast | null>(null);
   const optionsRef = useRef(options);
+  const factoryRef = useRef(factory);
 
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  useEffect(() => {
+    factoryRef.current = factory;
+  }, [factory]);
 
   useEffect(() => {
     return () => {
@@ -49,7 +59,7 @@ export function useBroadcast(options: UseBroadcastOptions): UseBroadcastReturn {
     }
 
     try {
-      const broadcast = createBroadcast({
+      const broadcast = factoryRef.current({
         stream,
         ...optionsRef.current,
       });

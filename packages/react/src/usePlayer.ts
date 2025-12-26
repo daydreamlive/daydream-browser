@@ -5,12 +5,12 @@ import {
   useState,
   type RefObject,
 } from "react";
-import {
-  createPlayer,
-  type Player,
-  type PlayerState,
-  type DaydreamError,
-  type ReconnectConfig,
+import type {
+  Player,
+  PlayerOptions,
+  PlayerState,
+  DaydreamError,
+  ReconnectConfig,
 } from "@daydreamlive/browser";
 
 export interface UsePlayerOptions {
@@ -19,6 +19,11 @@ export interface UsePlayerOptions {
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
 }
+
+export type PlayerFactory = (
+  whepUrl: string,
+  options?: PlayerOptions,
+) => Player;
 
 export interface UsePlayerReturn {
   state: PlayerState | "idle";
@@ -30,7 +35,8 @@ export interface UsePlayerReturn {
 
 export function usePlayer(
   whepUrl: string | null,
-  options?: UsePlayerOptions,
+  options: UsePlayerOptions | undefined,
+  factory: PlayerFactory,
 ): UsePlayerReturn {
   const [state, setState] = useState<PlayerState | "idle">("idle");
   const [error, setError] = useState<DaydreamError | null>(null);
@@ -39,10 +45,15 @@ export function usePlayer(
   const optionsRef = useRef(options);
   const whepUrlRef = useRef(whepUrl);
   const prevWhepUrlRef = useRef<string | null>(null);
+  const factoryRef = useRef(factory);
 
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  useEffect(() => {
+    factoryRef.current = factory;
+  }, [factory]);
 
   useEffect(() => {
     whepUrlRef.current = whepUrl;
@@ -67,7 +78,7 @@ export function usePlayer(
     }
 
     try {
-      const player = createPlayer(currentWhepUrl, {
+      const player = factoryRef.current(currentWhepUrl, {
         reconnect: optionsRef.current?.reconnect,
         onStats: optionsRef.current?.onStats,
         statsIntervalMs: optionsRef.current?.statsIntervalMs,

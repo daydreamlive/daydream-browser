@@ -12,6 +12,10 @@ export type PlayerState =
   | "ended"
   | "error";
 
+export interface WHIPResponseResult {
+  whepUrl?: string;
+}
+
 export interface BroadcastOptions {
   whipUrl: string;
   stream: MediaStream;
@@ -19,6 +23,7 @@ export interface BroadcastOptions {
   video?: VideoConfig;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
+  onResponse?: (response: Response) => WHIPResponseResult | void;
 }
 
 export interface PlayerOptions {
