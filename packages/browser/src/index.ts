@@ -1,8 +1,5 @@
 import type { BroadcastOptions, WHIPResponseResult } from "./types";
-import {
-  Broadcast,
-  createBroadcast as baseCreateBroadcast,
-} from "./Broadcast";
+import { Broadcast, createBroadcast as baseCreateBroadcast } from "./Broadcast";
 import { Player, createPlayer as baseCreatePlayer } from "./Player";
 import type { PlayerOptions } from "./types";
 
@@ -21,10 +18,7 @@ export function createBroadcast(options: LivepeerBroadcastOptions): Broadcast {
   });
 }
 
-export function createPlayer(
-  whepUrl: string,
-  options?: PlayerOptions,
-): Player {
+export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
   return baseCreatePlayer(whepUrl, options);
 }
 
@@ -56,5 +50,5 @@ export {
   DEFAULT_AUDIO_BITRATE,
 } from "./types";
 
-export type { Broadcast, BroadcastConfig } from "./Broadcast";
-export type { Player, PlayerConfig } from "./Player";
+export { Broadcast, type BroadcastConfig } from "./Broadcast";
+export { Player, type PlayerConfig } from "./Player";

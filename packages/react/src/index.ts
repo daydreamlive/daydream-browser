@@ -1,12 +1,14 @@
 import { createBroadcast, createPlayer } from "@daydreamlive/browser";
 import {
   useBroadcast as baseUseBroadcast,
-  usePlayer as baseUsePlayer,
   type UseBroadcastOptions,
   type UseBroadcastReturn,
+} from "./useBroadcast";
+import {
+  usePlayer as baseUsePlayer,
   type UsePlayerOptions,
   type UsePlayerReturn,
-} from "./core";
+} from "./usePlayer";
 
 export function useBroadcast(options: UseBroadcastOptions): UseBroadcastReturn {
   return baseUseBroadcast(options, createBroadcast);

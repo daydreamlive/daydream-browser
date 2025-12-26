@@ -2,6 +2,7 @@ import {
   DEFAULT_ICE_SERVERS,
   DEFAULT_VIDEO_BITRATE,
   DEFAULT_AUDIO_BITRATE,
+  type WHIPResponseResult,
 } from "../types";
 import { ConnectionError, NetworkError } from "../errors";
 
@@ -27,10 +28,6 @@ function setCachedRedirect(key: string, value: URL): void {
     if (oldestKey) redirectCache.delete(oldestKey);
   }
   redirectCache.set(key, value);
-}
-
-export interface WHIPResponseResult {
-  whepUrl?: string;
 }
 
 export interface WHIPClientConfig {
