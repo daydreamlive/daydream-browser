@@ -30,7 +30,7 @@ export interface UsePlayerReturn {
 
 export function usePlayer(
   whepUrl: string | null,
-  options?: UsePlayerOptions
+  options?: UsePlayerOptions,
 ): UsePlayerReturn {
   const [state, setState] = useState<PlayerState | "idle">("idle");
   const [error, setError] = useState<DaydreamError | null>(null);
@@ -38,6 +38,7 @@ export function usePlayer(
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const optionsRef = useRef(options);
   const whepUrlRef = useRef(whepUrl);
+  const prevWhepUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     optionsRef.current = options;
@@ -109,10 +110,13 @@ export function usePlayer(
   }, []);
 
   useEffect(() => {
-    if (whepUrl && optionsRef.current?.autoPlay !== false && state === "idle") {
+    const urlChanged = whepUrl !== prevWhepUrlRef.current;
+    prevWhepUrlRef.current = whepUrl;
+
+    if (urlChanged && whepUrl && optionsRef.current?.autoPlay !== false) {
       play().catch(() => {});
     }
-  }, [whepUrl, play, state]);
+  }, [whepUrl, play]);
 
   return {
     state,
