@@ -37,8 +37,8 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     this.whepConfig = config.whepConfig;
     this.reconnectConfig = {
       enabled: config.reconnect?.enabled ?? true,
-      maxAttempts: config.reconnect?.maxAttempts ?? 10,
-      baseDelayMs: config.reconnect?.baseDelayMs ?? 300,
+      maxAttempts: config.reconnect?.maxAttempts ?? 30,
+      baseDelayMs: config.reconnect?.baseDelayMs ?? 200,
     };
 
     this.whepClient = new WHEPClient({
@@ -184,7 +184,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 300;
     const delay = this.calculateReconnectDelay(
       this.reconnectAttempts,
-      baseDelay
+      baseDelay,
     );
     this.reconnectAttempts++;
 
@@ -193,7 +193,10 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
 
       try {
         await this.whepClient.disconnect();
-        this.whepClient = new WHEPClient({ url: this.whepUrl, ...this.whepConfig });
+        this.whepClient = new WHEPClient({
+          url: this.whepUrl,
+          ...this.whepConfig,
+        });
         this._stream = await this.whepClient.connect();
         this.setupConnectionMonitoring();
         this.setState("playing");
@@ -208,7 +211,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     const linearPhaseEndCount = 10;
     const maxDelay = 60000;
 
-    if (attempt === 0) return 500;
+    if (attempt === 0) return 0;
     if (attempt <= linearPhaseEndCount) return baseDelay;
 
     const exponentialAttempt = attempt - linearPhaseEndCount;
@@ -227,4 +230,3 @@ export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
     },
   });
 }
-
