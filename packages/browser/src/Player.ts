@@ -19,6 +19,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   private _stream: MediaStream | null = null;
   private readonly whepUrl: string;
   private readonly reconnectConfig: ReconnectConfig;
+  private readonly whepConfig: Partial<WHEPClientConfig> | undefined;
   private whepClient: WHEPClient;
 
   private reconnectAttempts = 0;
@@ -32,6 +33,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   constructor(config: PlayerConfig) {
     super();
     this.whepUrl = config.whepUrl;
+    this.whepConfig = config.whepConfig;
     this.reconnectConfig = {
       enabled: config.reconnect?.enabled ?? true,
       maxAttempts: config.reconnect?.maxAttempts ?? 10,
@@ -40,7 +42,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
 
     this.whepClient = new WHEPClient({
       url: config.whepUrl,
-      ...config.whepConfig,
+      ...this.whepConfig,
     });
 
     this.readyPromise = new Promise((resolve, reject) => {
@@ -190,7 +192,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
 
       try {
         await this.whepClient.disconnect();
-        this.whepClient = new WHEPClient({ url: this.whepUrl });
+        this.whepClient = new WHEPClient({ url: this.whepUrl, ...this.whepConfig });
         this._stream = await this.whepClient.connect();
         this.setupConnectionMonitoring();
         this.setState("playing");
