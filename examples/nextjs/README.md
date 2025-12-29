@@ -2,7 +2,7 @@
 
 This demo shows how to use the Daydream SDK with Next.js:
 
-- **Backend**: `daydream-sdk` via Server Actions
+- **Backend**: `@daydreamlive/sdk` via Server Actions
 - **Frontend**: `@daydreamlive/browser` for WebRTC streaming
 
 ## Setup
@@ -40,8 +40,8 @@ npm run dev
 ┌─────────────────────────────────────────────────────────┐
 │                   Next.js Server                        │
 │  Server Actions (src/app/actions.ts)                    │
-│  - createStream()  → daydream-sdk                       │
-│  - updateStream()  → daydream-sdk                       │
+│  - createStream()  → @daydreamlive/sdk                  │
+│  - updateStream()  → @daydreamlive/sdk                  │
 └───────────────────────┬─────────────────────────────────┘
                         │ whipUrl, whepUrl
                         ▼

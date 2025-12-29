@@ -1,7 +1,7 @@
 "use server";
 
-import { Daydream } from "daydream-sdk";
-import type { Sdxl } from "daydream-sdk/models";
+import { Daydream } from "@daydreamlive/sdk";
+import type { Sdxl } from "@daydreamlive/sdk/models";
 
 const client = new Daydream({ bearer: process.env.DAYDREAM_API_KEY! });
 

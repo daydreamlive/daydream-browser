@@ -18,7 +18,7 @@ import { createBroadcast } from "@daydreamlive/browser";
 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
 const broadcast = createBroadcast({
-  whipUrl: "https://...", // from your backend via daydream-sdk
+  whipUrl: "https://...", // from your backend via @daydreamlive/sdk
   stream,
 });
 

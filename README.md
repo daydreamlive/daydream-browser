@@ -24,7 +24,7 @@ See [examples/nextjs](./examples/nextjs) for a full working example.
 ```
 Backend (your server)          Browser
 ┌─────────────────────┐       ┌──────────────────────────┐
-│  daydream-sdk       │       │  @daydreamlive/browser   │
+│  @daydreamlive/sdk  │       │  @daydreamlive/browser   │
 │  - createStream()   │──────▶│  - WHIP (broadcast)      │
 │  - updateStream()   │       │  - WHEP (playback)       │
 └─────────────────────┘       └──────────────────────────┘

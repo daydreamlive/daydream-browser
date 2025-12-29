@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["react", "@daydreamlive/browser", "@daydreamlive/sdk", "daydream-sdk"],
+  external: ["react", "@daydreamlive/browser"],
 });
