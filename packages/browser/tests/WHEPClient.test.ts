@@ -70,12 +70,18 @@ describe("WHEPClient", () => {
 
       await client.connect();
 
-      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith("video", {
-        direction: "recvonly",
-      });
-      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith("audio", {
-        direction: "recvonly",
-      });
+      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith(
+        "video",
+        {
+          direction: "recvonly",
+        },
+      );
+      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith(
+        "audio",
+        {
+          direction: "recvonly",
+        },
+      );
     });
 
     it("should throw ConnectionError on HTTP error", async () => {

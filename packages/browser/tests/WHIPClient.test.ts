@@ -169,7 +169,9 @@ describe("WHIPClient", () => {
       await client.disconnect();
 
       expect(mockFetch.calls).toHaveLength(1);
-      expect(mockFetch.calls[0]?.input).toBe("https://server/whip/resource/123");
+      expect(mockFetch.calls[0]?.input).toBe(
+        "https://server/whip/resource/123",
+      );
       expect(mockFetch.calls[0]?.init?.method).toBe("DELETE");
     });
 

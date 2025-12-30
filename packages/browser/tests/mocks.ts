@@ -33,7 +33,10 @@ export function createMockPeerConnection(): MockPeerConnection {
     connectionState: "new",
     iceConnectionState: "new",
     iceGatheringState: "complete",
-    localDescription: { sdp: "mock-offer-sdp", type: "offer" } as RTCSessionDescription,
+    localDescription: {
+      sdp: "mock-offer-sdp",
+      type: "offer",
+    } as RTCSessionDescription,
     onconnectionstatechange: null,
     oniceconnectionstatechange: null,
     ontrack: null,
@@ -42,7 +45,9 @@ export function createMockPeerConnection(): MockPeerConnection {
       sender: { track: null },
       setCodecPreferences: vi.fn(),
     }),
-    createOffer: vi.fn().mockResolvedValue({ sdp: "mock-offer-sdp", type: "offer" }),
+    createOffer: vi
+      .fn()
+      .mockResolvedValue({ sdp: "mock-offer-sdp", type: "offer" }),
     setLocalDescription: vi.fn().mockResolvedValue(undefined),
     setRemoteDescription: vi.fn().mockResolvedValue(undefined),
     getSenders: vi.fn().mockReturnValue([]),
@@ -95,7 +100,9 @@ export function createMockMediaStream(): MediaStream {
   } as unknown as MediaStream;
 }
 
-export function createMockMediaStreamFactory(): MediaStreamFactory & { mockStream: MediaStream } {
+export function createMockMediaStreamFactory(): MediaStreamFactory & {
+  mockStream: MediaStream;
+} {
   const mockStream = createMockMediaStream();
   return {
     create: () => mockStream,
@@ -172,14 +179,30 @@ export function createMockFetch(): MockFetch {
 }
 
 export interface FakeTimers extends TimerProvider {
-  timers: Map<number, { callback: () => void; delay: number; type: "timeout" | "interval"; remaining: number }>;
+  timers: Map<
+    number,
+    {
+      callback: () => void;
+      delay: number;
+      type: "timeout" | "interval";
+      remaining: number;
+    }
+  >;
   advanceTimersByTime: (ms: number) => Promise<void>;
   runAllTimers: () => Promise<void>;
 }
 
 export function createFakeTimers(): FakeTimers {
   let nextId = 1;
-  const timers = new Map<number, { callback: () => void; delay: number; type: "timeout" | "interval"; remaining: number }>();
+  const timers = new Map<
+    number,
+    {
+      callback: () => void;
+      delay: number;
+      type: "timeout" | "interval";
+      remaining: number;
+    }
+  >();
 
   const fakeTimers: FakeTimers = {
     timers,
