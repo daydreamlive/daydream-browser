@@ -8,6 +8,15 @@ import type {
 import { WHIPClient, type WHIPClientConfig } from "./internal/WHIPClient";
 import { ConnectionError } from "./errors";
 import { TypedEventEmitter } from "./internal/TypedEventEmitter";
+import { createStateMachine, type StateMachine } from "./internal/StateMachine";
+
+const BROADCAST_TRANSITIONS: Record<BroadcastState, BroadcastState[]> = {
+  connecting: ["live", "error"],
+  live: ["reconnecting", "ended"],
+  reconnecting: ["live", "ended"],
+  ended: [],
+  error: ["connecting"],
+};
 
 export interface BroadcastConfig {
   whipUrl: string;
@@ -18,7 +27,7 @@ export interface BroadcastConfig {
 
 export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private _whepUrl: string | null = null;
-  private _state: BroadcastState = "connecting";
+  private readonly stateMachine: StateMachine<BroadcastState>;
   private currentStream: MediaStream;
   private readonly reconnectConfig: ReconnectConfig;
   private readonly whipClient: WHIPClient;
@@ -26,7 +35,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private reconnectAttempts = 0;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
-  private stopped = false;
 
   constructor(config: BroadcastConfig) {
     super();
@@ -41,10 +49,16 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
       url: config.whipUrl,
       ...config.whipConfig,
     });
+
+    this.stateMachine = createStateMachine<BroadcastState>(
+      "connecting",
+      BROADCAST_TRANSITIONS,
+      (_from, to) => this.emit("stateChange", to),
+    );
   }
 
   get state(): BroadcastState {
-    return this._state;
+    return this.stateMachine.current;
   }
 
   get whepUrl(): string | null {
@@ -62,9 +76,9 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
         this._whepUrl = result.whepUrl;
       }
       this.setupConnectionMonitoring();
-      this.setState("live");
+      this.stateMachine.transition("live");
     } catch (error) {
-      this.setState("error");
+      this.stateMachine.transition("error");
       const daydreamError =
         error instanceof Error
           ? error
@@ -74,19 +88,11 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     }
   }
 
-  private setState(state: BroadcastState): void {
-    if (this._state !== state) {
-      this._state = state;
-      this.emit("stateChange", state);
-    }
-  }
-
   async stop(): Promise<void> {
-    this.stopped = true;
+    this.stateMachine.force("ended");
     this.clearTimeouts();
 
     await this.whipClient.disconnect();
-    this.setState("ended");
     this.clearListeners();
   }
 
@@ -118,25 +124,25 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     if (!pc) return;
 
     pc.onconnectionstatechange = () => {
-      if (this.stopped) return;
+      if (this.state === "ended") return;
 
-      const state = pc.connectionState;
+      const connState = pc.connectionState;
 
-      if (state === "connected") {
+      if (connState === "connected") {
         this.clearGraceTimeout();
-        if (this._state === "reconnecting") {
-          this.setState("live");
+        if (this.state === "reconnecting") {
+          this.stateMachine.transition("live");
           this.reconnectAttempts = 0;
         }
         return;
       }
 
-      if (state === "disconnected") {
+      if (connState === "disconnected") {
         this.clearGraceTimeout();
         this.whipClient.restartIce();
 
         this.disconnectedGraceTimeout = setTimeout(() => {
-          if (this.stopped) return;
+          if (this.state === "ended") return;
           const currentState = pc.connectionState;
           if (currentState === "disconnected") {
             this.scheduleReconnect();
@@ -145,7 +151,7 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
         return;
       }
 
-      if (state === "failed" || state === "closed") {
+      if (connState === "failed" || connState === "closed") {
         this.clearGraceTimeout();
         this.scheduleReconnect();
       }
@@ -172,29 +178,29 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   }
 
   private scheduleReconnect(): void {
-    if (this.stopped) return;
+    if (this.state === "ended") return;
 
     if (!this.reconnectConfig.enabled) {
-      this.setState("ended");
+      this.stateMachine.transition("ended");
       return;
     }
 
     const maxAttempts = this.reconnectConfig.maxAttempts ?? 5;
 
     if (this.reconnectAttempts >= maxAttempts) {
-      this.setState("ended");
+      this.stateMachine.transition("ended");
       return;
     }
 
     this.clearReconnectTimeout();
-    this.setState("reconnecting");
+    this.stateMachine.transition("reconnecting");
 
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 1000;
     const delay = baseDelay * Math.pow(2, this.reconnectAttempts);
     this.reconnectAttempts++;
 
     this.reconnectTimeout = setTimeout(async () => {
-      if (this.stopped) return;
+      if (this.state === "ended") return;
 
       try {
         await this.whipClient.disconnect();
@@ -203,7 +209,7 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
           this._whepUrl = result.whepUrl;
         }
         this.setupConnectionMonitoring();
-        this.setState("live");
+        this.stateMachine.transition("live");
         this.reconnectAttempts = 0;
       } catch {
         this.scheduleReconnect();

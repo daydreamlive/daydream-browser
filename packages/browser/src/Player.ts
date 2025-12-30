@@ -8,6 +8,15 @@ import type {
 import { WHEPClient, type WHEPClientConfig } from "./internal/WHEPClient";
 import { ConnectionError } from "./errors";
 import { TypedEventEmitter } from "./internal/TypedEventEmitter";
+import { createStateMachine, type StateMachine } from "./internal/StateMachine";
+
+const PLAYER_TRANSITIONS: Record<PlayerState, PlayerState[]> = {
+  connecting: ["playing", "error"],
+  playing: ["buffering", "ended"],
+  buffering: ["playing", "ended"],
+  ended: [],
+  error: ["connecting"],
+};
 
 export interface PlayerConfig {
   whepUrl: string;
@@ -16,7 +25,7 @@ export interface PlayerConfig {
 }
 
 export class Player extends TypedEventEmitter<PlayerEventMap> {
-  private _state: PlayerState = "connecting";
+  private readonly stateMachine: StateMachine<PlayerState>;
   private _stream: MediaStream | null = null;
   private readonly whepUrl: string;
   private readonly reconnectConfig: ReconnectConfig;
@@ -26,7 +35,6 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   private reconnectAttempts = 0;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
-  private stopped = false;
 
   constructor(config: PlayerConfig) {
     super();
@@ -42,10 +50,16 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       url: config.whepUrl,
       ...this.whepConfig,
     });
+
+    this.stateMachine = createStateMachine<PlayerState>(
+      "connecting",
+      PLAYER_TRANSITIONS,
+      (_from, to) => this.emit("stateChange", to),
+    );
   }
 
   get state(): PlayerState {
-    return this._state;
+    return this.stateMachine.current;
   }
 
   get stream(): MediaStream | null {
@@ -56,22 +70,15 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     try {
       this._stream = await this.whepClient.connect();
       this.setupConnectionMonitoring();
-      this.setState("playing");
+      this.stateMachine.transition("playing");
     } catch (error) {
-      this.setState("error");
+      this.stateMachine.transition("error");
       const daydreamError =
         error instanceof Error
           ? error
           : new ConnectionError("Failed to connect", error);
       this.emit("error", daydreamError as DaydreamError);
       throw daydreamError;
-    }
-  }
-
-  private setState(state: PlayerState): void {
-    if (this._state !== state) {
-      this._state = state;
-      this.emit("stateChange", state);
     }
   }
 
@@ -82,12 +89,11 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   }
 
   async stop(): Promise<void> {
-    this.stopped = true;
+    this.stateMachine.force("ended");
     this.clearTimeouts();
 
     await this.whepClient.disconnect();
     this._stream = null;
-    this.setState("ended");
     this.clearListeners();
   }
 
@@ -96,25 +102,25 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     if (!pc) return;
 
     pc.oniceconnectionstatechange = () => {
-      if (this.stopped) return;
+      if (this.state === "ended") return;
 
-      const state = pc.iceConnectionState;
+      const iceState = pc.iceConnectionState;
 
-      if (state === "connected" || state === "completed") {
+      if (iceState === "connected" || iceState === "completed") {
         this.clearGraceTimeout();
-        if (this._state === "buffering") {
-          this.setState("playing");
+        if (this.state === "buffering") {
+          this.stateMachine.transition("playing");
           this.reconnectAttempts = 0;
         }
         return;
       }
 
-      if (state === "disconnected") {
+      if (iceState === "disconnected") {
         this.clearGraceTimeout();
         this.whepClient.restartIce();
 
         this.disconnectedGraceTimeout = setTimeout(() => {
-          if (this.stopped) return;
+          if (this.state === "ended") return;
           const currentState = pc.iceConnectionState;
           if (currentState === "disconnected") {
             this.scheduleReconnect();
@@ -123,7 +129,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
         return;
       }
 
-      if (state === "failed" || state === "closed") {
+      if (iceState === "failed" || iceState === "closed") {
         this.clearGraceTimeout();
         this.scheduleReconnect();
       }
@@ -150,22 +156,22 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   }
 
   private scheduleReconnect(): void {
-    if (this.stopped) return;
+    if (this.state === "ended") return;
 
     if (!this.reconnectConfig.enabled) {
-      this.setState("ended");
+      this.stateMachine.transition("ended");
       return;
     }
 
     const maxAttempts = this.reconnectConfig.maxAttempts ?? 10;
 
     if (this.reconnectAttempts >= maxAttempts) {
-      this.setState("ended");
+      this.stateMachine.transition("ended");
       return;
     }
 
     this.clearReconnectTimeout();
-    this.setState("buffering");
+    this.stateMachine.transition("buffering");
 
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 300;
     const delay = this.calculateReconnectDelay(
@@ -175,7 +181,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     this.reconnectAttempts++;
 
     this.reconnectTimeout = setTimeout(async () => {
-      if (this.stopped) return;
+      if (this.state === "ended") return;
 
       try {
         await this.whepClient.disconnect();
@@ -185,7 +191,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
         });
         this._stream = await this.whepClient.connect();
         this.setupConnectionMonitoring();
-        this.setState("playing");
+        this.stateMachine.transition("playing");
         this.reconnectAttempts = 0;
       } catch {
         this.scheduleReconnect();
