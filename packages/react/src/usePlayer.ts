@@ -29,7 +29,7 @@ export interface UsePlayerReturn {
   state: PlayerState | "idle";
   error: DaydreamError | null;
   play: () => Promise<void>;
-  stop: () => void;
+  stop: () => Promise<void>;
   videoRef: RefObject<HTMLVideoElement | null>;
 }
 
@@ -74,7 +74,7 @@ export function usePlayer(
     setError(null);
 
     if (playerRef.current) {
-      playerRef.current.stop();
+      await playerRef.current.stop();
     }
 
     try {
@@ -114,8 +114,8 @@ export function usePlayer(
     }
   }, []);
 
-  const stop = useCallback(() => {
-    playerRef.current?.stop();
+  const stop = useCallback(async () => {
+    await playerRef.current?.stop();
     playerRef.current = null;
     setState("idle");
   }, []);

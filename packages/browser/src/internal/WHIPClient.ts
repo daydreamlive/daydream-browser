@@ -5,29 +5,49 @@ import {
   type WHIPResponseResult,
 } from "../types";
 import { ConnectionError, NetworkError } from "../errors";
+import {
+  type PeerConnectionFactory,
+  type FetchFn,
+  type TimerProvider,
+  defaultPeerConnectionFactory,
+  defaultFetch,
+  defaultTimerProvider,
+} from "./dependencies";
 
-const MAX_REDIRECT_CACHE_SIZE = 10;
-const redirectCache = new Map<string, URL>();
 const PLAYBACK_ID_PATTERN = /([/+])([^/+?]+)$/;
 const PLAYBACK_ID_PLACEHOLDER = "__PLAYBACK_ID__";
 
-function getCachedRedirect(key: string): URL | undefined {
-  const cached = redirectCache.get(key);
-  if (cached) {
-    redirectCache.delete(key);
-    redirectCache.set(key, cached);
-  }
-  return cached;
+export interface RedirectCache {
+  get(key: string): URL | undefined;
+  set(key: string, value: URL): void;
 }
 
-function setCachedRedirect(key: string, value: URL): void {
-  if (redirectCache.has(key)) {
-    redirectCache.delete(key);
-  } else if (redirectCache.size >= MAX_REDIRECT_CACHE_SIZE) {
-    const oldestKey = redirectCache.keys().next().value;
-    if (oldestKey) redirectCache.delete(oldestKey);
+class LRURedirectCache implements RedirectCache {
+  private cache = new Map<string, URL>();
+  private readonly maxSize: number;
+
+  constructor(maxSize = 10) {
+    this.maxSize = maxSize;
   }
-  redirectCache.set(key, value);
+
+  get(key: string): URL | undefined {
+    const cached = this.cache.get(key);
+    if (cached) {
+      this.cache.delete(key);
+      this.cache.set(key, cached);
+    }
+    return cached;
+  }
+
+  set(key: string, value: URL): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    this.cache.set(key, value);
+  }
 }
 
 export interface WHIPClientConfig {
@@ -39,6 +59,10 @@ export interface WHIPClientConfig {
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
   onResponse?: (response: Response) => WHIPResponseResult | void;
+  peerConnectionFactory?: PeerConnectionFactory;
+  fetch?: FetchFn;
+  timers?: TimerProvider;
+  redirectCache?: RedirectCache;
 }
 
 function preferH264(sdp: string): string {
@@ -67,22 +91,29 @@ function preferH264(sdp: string): string {
   return lines.join("\r\n");
 }
 
-export class WHIPClient {
-  private url: string;
-  private iceServers: RTCIceServer[];
-  private videoBitrate: number;
-  private audioBitrate: number;
-  private maxFramerate?: number;
-  private onStats?: (report: RTCStatsReport) => void;
-  private statsIntervalMs: number;
-  private onResponse?: (response: Response) => WHIPResponseResult | void;
+const sharedRedirectCache = new LRURedirectCache();
 
+export class WHIPClient {
+  private readonly url: string;
+  private readonly iceServers: RTCIceServer[];
+  private readonly videoBitrate: number;
+  private readonly audioBitrate: number;
+  private readonly onStats?: (report: RTCStatsReport) => void;
+  private readonly statsIntervalMs: number;
+  private readonly onResponse?: (response: Response) => WHIPResponseResult | void;
+  private readonly pcFactory: PeerConnectionFactory;
+  private readonly fetch: FetchFn;
+  private readonly timers: TimerProvider;
+  private readonly redirectCache: RedirectCache;
+
+  private maxFramerate?: number;
   private pc: RTCPeerConnection | null = null;
   private resourceUrl: string | null = null;
   private abortController: AbortController | null = null;
-  private statsTimer: ReturnType<typeof setInterval> | null = null;
+  private statsTimer: number | null = null;
   private videoSender: RTCRtpSender | null = null;
   private audioSender: RTCRtpSender | null = null;
+  private iceGatheringTimer: number | null = null;
 
   constructor(config: WHIPClientConfig) {
     this.url = config.url;
@@ -93,12 +124,16 @@ export class WHIPClient {
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
     this.onResponse = config.onResponse;
+    this.pcFactory = config.peerConnectionFactory ?? defaultPeerConnectionFactory;
+    this.fetch = config.fetch ?? defaultFetch;
+    this.timers = config.timers ?? defaultTimerProvider;
+    this.redirectCache = config.redirectCache ?? sharedRedirectCache;
   }
 
   async connect(stream: MediaStream): Promise<{ whepUrl: string | null }> {
     this.cleanup();
 
-    this.pc = new RTCPeerConnection({
+    this.pc = this.pcFactory.create({
       iceServers: this.iceServers,
       iceCandidatePoolSize: 10,
     });
@@ -127,19 +162,22 @@ export class WHIPClient {
     await this.waitForIceGathering();
 
     this.abortController = new AbortController();
-    const timeoutId = setTimeout(() => this.abortController?.abort(), 10000);
+    const timeoutId = this.timers.setTimeout(
+      () => this.abortController?.abort(),
+      10000,
+    );
 
     try {
       const fetchUrl = this.getUrlWithCachedRedirect();
 
-      const response = await fetch(fetchUrl, {
+      const response = await this.fetch(fetchUrl, {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: this.pc.localDescription!.sdp,
         signal: this.abortController.signal,
       });
 
-      clearTimeout(timeoutId);
+      this.timers.clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
@@ -165,7 +203,7 @@ export class WHIPClient {
 
       return { whepUrl: responseResult?.whepUrl ?? null };
     } catch (error) {
-      clearTimeout(timeoutId);
+      this.timers.clearTimeout(timeoutId);
       if (error instanceof ConnectionError) {
         throw error;
       }
@@ -245,15 +283,19 @@ export class WHIPClient {
       const onStateChange = () => {
         if (this.pc?.iceGatheringState === "complete") {
           this.pc.removeEventListener("icegatheringstatechange", onStateChange);
-          clearTimeout(timerId);
+          if (this.iceGatheringTimer !== null) {
+            this.timers.clearTimeout(this.iceGatheringTimer);
+            this.iceGatheringTimer = null;
+          }
           resolve();
         }
       };
 
       this.pc.addEventListener("icegatheringstatechange", onStateChange);
 
-      const timerId = setTimeout(() => {
+      this.iceGatheringTimer = this.timers.setTimeout(() => {
         this.pc?.removeEventListener("icegatheringstatechange", onStateChange);
+        this.iceGatheringTimer = null;
         resolve();
       }, 2000);
     });
@@ -264,7 +306,7 @@ export class WHIPClient {
 
     this.stopStatsTimer();
 
-    this.statsTimer = setInterval(async () => {
+    this.statsTimer = this.timers.setInterval(async () => {
       if (!this.pc) return;
       try {
         const report = await this.pc.getStats();
@@ -276,8 +318,8 @@ export class WHIPClient {
   }
 
   private stopStatsTimer(): void {
-    if (this.statsTimer) {
-      clearInterval(this.statsTimer);
+    if (this.statsTimer !== null) {
+      this.timers.clearInterval(this.statsTimer);
       this.statsTimer = null;
     }
   }
@@ -305,6 +347,11 @@ export class WHIPClient {
 
   private cleanup(): void {
     this.stopStatsTimer();
+
+    if (this.iceGatheringTimer !== null) {
+      this.timers.clearTimeout(this.iceGatheringTimer);
+      this.iceGatheringTimer = null;
+    }
 
     if (this.abortController) {
       try {
@@ -343,7 +390,7 @@ export class WHIPClient {
   async disconnect(): Promise<void> {
     if (this.resourceUrl) {
       try {
-        await fetch(this.resourceUrl, { method: "DELETE" });
+        await this.fetch(this.resourceUrl, { method: "DELETE" });
       } catch {
         // Ignore delete errors
       }
@@ -376,7 +423,7 @@ export class WHIPClient {
     const playbackIdMatch = originalUrl.pathname.match(PLAYBACK_ID_PATTERN);
     const playbackId = playbackIdMatch?.[2];
 
-    const cachedTemplate = getCachedRedirect(this.url);
+    const cachedTemplate = this.redirectCache.get(this.url);
     if (!cachedTemplate || !playbackId) {
       return this.url;
     }
@@ -399,7 +446,7 @@ export class WHIPClient {
         PLAYBACK_ID_PATTERN,
         `$1${PLAYBACK_ID_PLACEHOLDER}`,
       );
-      setCachedRedirect(this.url, template);
+      this.redirectCache.set(this.url, template);
     } catch {
       // Invalid URL, skip caching
     }

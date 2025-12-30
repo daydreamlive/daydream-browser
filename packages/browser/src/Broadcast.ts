@@ -27,9 +27,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
-  private readyResolve: (() => void) | null = null;
-  private readyReject: ((error: Error) => void) | null = null;
-  private readyPromise: Promise<void>;
 
   constructor(config: BroadcastConfig) {
     super();
@@ -44,11 +41,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
       url: config.whipUrl,
       ...config.whipConfig,
     });
-
-    this.readyPromise = new Promise((resolve, reject) => {
-      this.readyResolve = resolve;
-      this.readyReject = reject;
-    });
   }
 
   get state(): BroadcastState {
@@ -57,10 +49,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
 
   get whepUrl(): string | null {
     return this._whepUrl;
-  }
-
-  get ready(): Promise<void> {
-    return this.readyPromise;
   }
 
   get stream(): MediaStream {
@@ -75,7 +63,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
       }
       this.setupConnectionMonitoring();
       this.setState("live");
-      this.readyResolve?.();
     } catch (error) {
       this.setState("error");
       const daydreamError =
@@ -83,7 +70,6 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
           ? error
           : new ConnectionError("Failed to connect", error);
       this.emit("error", daydreamError as DaydreamError);
-      this.readyReject?.(daydreamError);
       throw daydreamError;
     }
   }

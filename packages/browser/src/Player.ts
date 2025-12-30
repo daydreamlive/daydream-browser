@@ -27,9 +27,6 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
-  private readyResolve: (() => void) | null = null;
-  private readyReject: ((error: Error) => void) | null = null;
-  private readyPromise: Promise<void>;
 
   constructor(config: PlayerConfig) {
     super();
@@ -45,11 +42,6 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       url: config.whepUrl,
       ...this.whepConfig,
     });
-
-    this.readyPromise = new Promise((resolve, reject) => {
-      this.readyResolve = resolve;
-      this.readyReject = reject;
-    });
   }
 
   get state(): PlayerState {
@@ -60,16 +52,11 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     return this._stream;
   }
 
-  get ready(): Promise<void> {
-    return this.readyPromise;
-  }
-
   async connect(): Promise<void> {
     try {
       this._stream = await this.whepClient.connect();
       this.setupConnectionMonitoring();
       this.setState("playing");
-      this.readyResolve?.();
     } catch (error) {
       this.setState("error");
       const daydreamError =
@@ -77,7 +64,6 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
           ? error
           : new ConnectionError("Failed to connect", error);
       this.emit("error", daydreamError as DaydreamError);
-      this.readyReject?.(daydreamError);
       throw daydreamError;
     }
   }
@@ -95,11 +81,11 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     }
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.stopped = true;
     this.clearTimeouts();
 
-    this.whepClient.disconnect();
+    await this.whepClient.disconnect();
     this._stream = null;
     this.setState("ended");
     this.clearListeners();
