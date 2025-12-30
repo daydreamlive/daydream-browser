@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Player } from "../Player";
-import type { PlayerState } from "../types";
+import { Player } from "../src/Player";
+import type { PlayerState } from "../src/types";
 import { createMockMediaStream } from "./mocks";
 
 const mockMediaStream = createMockMediaStream();
 
-vi.mock("../internal/WHEPClient", () => {
+vi.mock("../src/internal/WHEPClient", () => {
   return {
     WHEPClient: vi.fn().mockImplementation(() => ({
       connect: vi.fn().mockResolvedValue(mockMediaStream),

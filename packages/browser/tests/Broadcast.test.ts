@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Broadcast } from "../Broadcast";
-import type { BroadcastState } from "../types";
+import { Broadcast } from "../src/Broadcast";
+import type { BroadcastState } from "../src/types";
 import { createMockMediaStream } from "./mocks";
 
-vi.mock("../internal/WHIPClient", () => {
+vi.mock("../src/internal/WHIPClient", () => {
   return {
     WHIPClient: vi.fn().mockImplementation(() => ({
       connect: vi

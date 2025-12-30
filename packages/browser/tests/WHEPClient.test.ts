@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { WHEPClient } from "../internal/WHEPClient";
-import { ConnectionError, NetworkError } from "../errors";
+import { WHEPClient } from "../src/internal/WHEPClient";
+import { ConnectionError, NetworkError } from "../src/errors";
 import {
   createMockPeerConnectionFactory,
   createMockFetch,

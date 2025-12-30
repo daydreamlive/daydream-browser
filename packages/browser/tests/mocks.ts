@@ -4,7 +4,7 @@ import type {
   FetchFn,
   TimerProvider,
   MediaStreamFactory,
-} from "../internal/dependencies";
+} from "../src/internal/dependencies";
 
 export interface MockPeerConnection {
   connectionState: RTCPeerConnectionState;

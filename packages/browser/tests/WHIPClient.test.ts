@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { WHIPClient } from "../internal/WHIPClient";
-import { ConnectionError, NetworkError } from "../errors";
+import { WHIPClient } from "../src/internal/WHIPClient";
+import { ConnectionError, NetworkError } from "../src/errors";
 import {
   createMockPeerConnectionFactory,
   createMockMediaStream,
