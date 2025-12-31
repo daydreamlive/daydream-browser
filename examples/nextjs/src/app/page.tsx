@@ -40,18 +40,18 @@ function Spinner() {
 
 function BroadcasterPanel({
   streamInfo,
+  mediaStream,
   onWhepUrlChange,
   onStarted,
 }: {
   streamInfo: StreamInfo | null;
+  mediaStream: MediaStream | null;
   onWhepUrlChange: (url: string | null) => void;
   onStarted: () => void;
 }) {
   const [prompt, setPrompt] = useState("cyberpunk, high quality");
   const [isPending, startTransition] = useTransition();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const pendingStartRef = useRef<MediaStream | null>(null);
 
   const { state, whepUrl, error, start, stop } = useBroadcast({
     whipUrl: streamInfo?.whipUrl ?? "",
@@ -63,51 +63,23 @@ function BroadcasterPanel({
   }, [whepUrl, onWhepUrlChange]);
 
   useEffect(() => {
-    if (streamInfo && pendingStartRef.current && state === "idle") {
-      const mediaStream = pendingStartRef.current;
-      pendingStartRef.current = null;
-      start(mediaStream).catch(console.error);
+    if (videoRef.current && mediaStream) {
+      videoRef.current.srcObject = mediaStream;
     }
-  }, [streamInfo, state, start]);
+  }, [mediaStream]);
 
   const handleStart = useCallback(async () => {
+    if (!mediaStream) return;
     onStarted();
-    startTransition(async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 512, height: 512 },
-          audio: true,
-        });
-        streamRef.current = mediaStream;
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-
-        if (streamInfo) {
-          await start(mediaStream);
-        } else {
-          pendingStartRef.current = mediaStream;
-        }
-      } catch (err) {
-        console.error("Failed to start broadcast:", err);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((t) => t.stop());
-          streamRef.current = null;
-        }
-      }
-    });
-  }, [streamInfo, start, onStarted]);
+    try {
+      await start(mediaStream);
+    } catch (err) {
+      console.error("Failed to start broadcast:", err);
+    }
+  }, [mediaStream, start, onStarted]);
 
   const handleStop = useCallback(async () => {
     await stop();
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
   }, [stop]);
 
   const handleUpdatePrompt = useCallback(() => {
@@ -121,14 +93,7 @@ function BroadcasterPanel({
     });
   }, [streamInfo, prompt]);
 
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, []);
-
+  const isReady = streamInfo && mediaStream;
   const isLive = state === "live";
   const isConnecting = state === "connecting" || state === "reconnecting";
 
@@ -186,10 +151,10 @@ function BroadcasterPanel({
       ) : (
         <button
           onClick={handleStart}
-          disabled={isConnecting || isPending}
+          disabled={!isReady || isConnecting}
           className="w-full px-4 py-2.5 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 disabled:opacity-50 transition-colors cursor-pointer"
         >
-          {isPending ? "Starting..." : isConnecting ? "Connecting..." : "Start"}
+          {!isReady ? "Preparing..." : isConnecting ? "Connecting..." : "Start"}
         </button>
       )}
 
@@ -266,6 +231,7 @@ function PlayerPanel({
 
 export default function Home() {
   const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [whepUrl, setWhepUrl] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
 
@@ -282,10 +248,29 @@ export default function Home() {
         console.error("Failed to create stream:", err);
       });
 
+    navigator.mediaDevices
+      .getUserMedia({ video: { width: 512, height: 512 }, audio: true })
+      .then((stream) => {
+        if (!cancelled) {
+          setMediaStream(stream);
+        } else {
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to get media:", err);
+      });
+
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      mediaStream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [mediaStream]);
 
   const handleStarted = useCallback(() => {
     setStarted(true);
@@ -306,6 +291,7 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-8">
           <BroadcasterPanel
             streamInfo={streamInfo}
+            mediaStream={mediaStream}
             onWhepUrlChange={setWhepUrl}
             onStarted={handleStarted}
           />
