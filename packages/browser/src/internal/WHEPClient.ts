@@ -44,10 +44,12 @@ export class WHEPClient {
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
-    this.pcFactory = config.peerConnectionFactory ?? defaultPeerConnectionFactory;
+    this.pcFactory =
+      config.peerConnectionFactory ?? defaultPeerConnectionFactory;
     this.fetch = config.fetch ?? defaultFetch;
     this.timers = config.timers ?? defaultTimerProvider;
-    this.mediaStreamFactory = config.mediaStreamFactory ?? defaultMediaStreamFactory;
+    this.mediaStreamFactory =
+      config.mediaStreamFactory ?? defaultMediaStreamFactory;
   }
 
   async connect(): Promise<MediaStream> {
@@ -151,7 +153,7 @@ export class WHEPClient {
         this.pc?.removeEventListener("icegatheringstatechange", onStateChange);
         this.iceGatheringTimer = null;
         resolve();
-      }, 2000);
+      }, 1000);
     });
   }
 
