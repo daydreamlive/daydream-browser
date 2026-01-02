@@ -130,7 +130,8 @@ export class WHIPClient {
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
     this.videoBitrate = config.videoBitrate ?? DEFAULT_VIDEO_BITRATE;
     this.audioBitrate = config.audioBitrate ?? DEFAULT_AUDIO_BITRATE;
-    this.connectionTimeout = config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
+    this.connectionTimeout =
+      config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
     this.maxFramerate = config.maxFramerate;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
@@ -175,7 +176,6 @@ export class WHIPClient {
     }
 
     this.setCodecPreferences();
-    await this.applyBitrateConstraints();
 
     const offer = await this.pc.createOffer({
       offerToReceiveAudio: false,
