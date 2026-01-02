@@ -1,5 +1,11 @@
 # @daydreamlive/browser
 
+## 0.2.0
+
+### Minor Changes
+
+- 18189a6: added compositor
+
 ## 0.1.1
 
 ### Patch Changes

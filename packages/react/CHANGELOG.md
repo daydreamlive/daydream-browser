@@ -1,5 +1,16 @@
 # @daydreamlive/react
 
+## 0.2.0
+
+### Minor Changes
+
+- 18189a6: added compositor
+
+### Patch Changes
+
+- Updated dependencies [18189a6]
+  - @daydreamlive/browser@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
