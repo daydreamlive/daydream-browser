@@ -127,7 +127,7 @@ describe("WHIPClient", () => {
       await expect(client.connect(mockStream)).rejects.toThrow(NetworkError);
     });
 
-    it("should add tracks from MediaStream", async () => {
+    it("should add transceivers for video and audio", async () => {
       mockFetch.mockResolvedValue(
         createMockResponse({ ok: true, body: "mock-answer-sdp" }),
       );
@@ -141,7 +141,13 @@ describe("WHIPClient", () => {
 
       await client.connect(mockStream);
 
-      expect(mockPcFactory.mockPc.addTrack).toHaveBeenCalledTimes(2);
+      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledTimes(2);
+      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith("video", {
+        direction: "sendonly",
+      });
+      expect(mockPcFactory.mockPc.addTransceiver).toHaveBeenCalledWith("audio", {
+        direction: "sendonly",
+      });
     });
   });
 

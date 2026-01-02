@@ -100,7 +100,9 @@ export class WHIPClient {
   private readonly audioBitrate: number;
   private readonly onStats?: (report: RTCStatsReport) => void;
   private readonly statsIntervalMs: number;
-  private readonly onResponse?: (response: Response) => WHIPResponseResult | void;
+  private readonly onResponse?: (
+    response: Response,
+  ) => WHIPResponseResult | void;
   private readonly pcFactory: PeerConnectionFactory;
   private readonly fetch: FetchFn;
   private readonly timers: TimerProvider;
@@ -113,6 +115,8 @@ export class WHIPClient {
   private statsTimer: number | null = null;
   private videoSender: RTCRtpSender | null = null;
   private audioSender: RTCRtpSender | null = null;
+  private videoTransceiver: RTCRtpTransceiver | null = null;
+  private audioTransceiver: RTCRtpTransceiver | null = null;
   private iceGatheringTimer: number | null = null;
 
   constructor(config: WHIPClientConfig) {
@@ -124,7 +128,8 @@ export class WHIPClient {
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
     this.onResponse = config.onResponse;
-    this.pcFactory = config.peerConnectionFactory ?? defaultPeerConnectionFactory;
+    this.pcFactory =
+      config.peerConnectionFactory ?? defaultPeerConnectionFactory;
     this.fetch = config.fetch ?? defaultFetch;
     this.timers = config.timers ?? defaultTimerProvider;
     this.redirectCache = config.redirectCache ?? sharedRedirectCache;
@@ -138,6 +143,15 @@ export class WHIPClient {
       iceCandidatePoolSize: 10,
     });
 
+    this.videoTransceiver = this.pc.addTransceiver("video", {
+      direction: "sendonly",
+    });
+    this.audioTransceiver = this.pc.addTransceiver("audio", {
+      direction: "sendonly",
+    });
+    this.videoSender = this.videoTransceiver.sender;
+    this.audioSender = this.audioTransceiver.sender;
+
     const videoTrack = stream.getVideoTracks()[0];
     const audioTrack = stream.getAudioTracks()[0];
 
@@ -145,11 +159,11 @@ export class WHIPClient {
       if (videoTrack.contentHint === "") {
         videoTrack.contentHint = "motion";
       }
-      this.videoSender = this.pc.addTrack(videoTrack, stream);
+      await this.videoSender.replaceTrack(videoTrack);
     }
 
     if (audioTrack) {
-      this.audioSender = this.pc.addTrack(audioTrack, stream);
+      await this.audioSender.replaceTrack(audioTrack);
     }
 
     this.setCodecPreferences();
@@ -215,14 +229,9 @@ export class WHIPClient {
   }
 
   private setCodecPreferences(): void {
-    if (!this.pc) return;
+    if (!this.videoTransceiver?.setCodecPreferences) return;
 
     try {
-      const transceiver = this.pc
-        .getTransceivers()
-        .find((t) => t.sender.track?.kind === "video");
-      if (!transceiver?.setCodecPreferences) return;
-
       const caps = RTCRtpSender.getCapabilities("video");
       if (!caps?.codecs?.length) return;
 
@@ -230,7 +239,7 @@ export class WHIPClient {
         c.mimeType.toLowerCase().includes("h264"),
       );
       if (h264Codecs.length) {
-        transceiver.setCodecPreferences(h264Codecs);
+        this.videoTransceiver.setCodecPreferences(h264Codecs);
       }
     } catch {
       // Codec preferences not supported
@@ -297,7 +306,7 @@ export class WHIPClient {
         this.pc?.removeEventListener("icegatheringstatechange", onStateChange);
         this.iceGatheringTimer = null;
         resolve();
-      }, 2000);
+      }, 1000);
     });
   }
 
@@ -385,6 +394,8 @@ export class WHIPClient {
 
     this.videoSender = null;
     this.audioSender = null;
+    this.videoTransceiver = null;
+    this.audioTransceiver = null;
   }
 
   async disconnect(): Promise<void> {

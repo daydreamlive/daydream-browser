@@ -42,7 +42,7 @@ export function createMockPeerConnection(): MockPeerConnection {
     ontrack: null,
     addTrack: vi.fn().mockReturnValue({ track: null }),
     addTransceiver: vi.fn().mockReturnValue({
-      sender: { track: null },
+      sender: { track: null, replaceTrack: vi.fn().mockResolvedValue(undefined) },
       setCodecPreferences: vi.fn(),
     }),
     createOffer: vi
