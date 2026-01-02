@@ -8,11 +8,15 @@
     "build": "npm run build --workspaces",
     "dev": "npm run dev --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "npm run build && changeset publish"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "@changesets/cli": "^2.29.8",
     "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
     "vitest": "^1.1.3"
   }
 }
