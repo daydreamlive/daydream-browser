@@ -71,5 +71,5 @@ export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.cloudflare.com:3478" },
 ];
 
-export const DEFAULT_VIDEO_BITRATE = 2_000_000;
+export const DEFAULT_VIDEO_BITRATE = 300_000;
 export const DEFAULT_AUDIO_BITRATE = 64_000;
