@@ -170,7 +170,7 @@ function PlayerPanel({
   whepUrl: string | null;
   started: boolean;
 }) {
-  const { state, error, videoRef } = usePlayer(whepUrl, {
+  const { state, error, videoRef, play, stop } = usePlayer(whepUrl, {
     autoPlay: true,
     reconnect: { enabled: true, maxAttempts: 10, baseDelayMs: 300 },
   });
@@ -184,10 +184,13 @@ function PlayerPanel({
   }, []);
 
   useEffect(() => {
-    if (!started) {
+    if (started && whepUrl) {
+      play().catch(() => {});
+    } else if (!started) {
+      stop();
       setVideoReady(false);
     }
-  }, [started]);
+  }, [started, whepUrl, play, stop]);
 
   return (
     <div className="space-y-4">

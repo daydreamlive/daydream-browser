@@ -44,7 +44,6 @@ export function usePlayer(
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const optionsRef = useRef(options);
   const whepUrlRef = useRef(whepUrl);
-  const prevWhepUrlRef = useRef<string | null>(null);
   const factoryRef = useRef(factory);
 
   useEffect(() => {
@@ -119,15 +118,6 @@ export function usePlayer(
     playerRef.current = null;
     setState("idle");
   }, []);
-
-  useEffect(() => {
-    const urlChanged = whepUrl !== prevWhepUrlRef.current;
-    prevWhepUrlRef.current = whepUrl;
-
-    if (urlChanged && whepUrl && optionsRef.current?.autoPlay !== false) {
-      play().catch(() => {});
-    }
-  }, [whepUrl, play]);
 
   return {
     state,
