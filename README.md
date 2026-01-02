@@ -4,10 +4,10 @@ WebRTC streaming SDK for [Daydream](https://daydream.live) — real-time AI vide
 
 ## Packages
 
-| Package                                       | Description                             |
-| --------------------------------------------- | --------------------------------------- |
-| [`@daydreamlive/browser`](./packages/browser) | Core WebRTC client (framework-agnostic) |
-| [`@daydreamlive/react`](./packages/react)     | React hooks                             |
+| Package                                       | Description        |
+| --------------------------------------------- | ------------------ |
+| [`@daydreamlive/browser`](./packages/browser) | Core WebRTC client |
+| [`@daydreamlive/react`](./packages/react)     | React hooks        |
 
 ## Quick Start
 
