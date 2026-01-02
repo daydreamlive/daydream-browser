@@ -1,5 +1,13 @@
 # @daydreamlive/react
 
+## 0.1.1
+
+### Patch Changes
+
+- d616df5: lower bitrate
+- Updated dependencies [d616df5]
+  - @daydreamlive/browser@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
