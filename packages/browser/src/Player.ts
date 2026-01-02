@@ -242,6 +242,7 @@ export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
     whepConfig: {
       iceServers: options?.iceServers,
       connectionTimeout: options?.connectionTimeout,
+      skipIceGathering: options?.skipIceGathering,
       onStats: options?.onStats,
       statsIntervalMs: options?.statsIntervalMs,
     },

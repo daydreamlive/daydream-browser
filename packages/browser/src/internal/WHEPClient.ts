@@ -15,6 +15,7 @@ export interface WHEPClientConfig {
   url: string;
   iceServers?: RTCIceServer[];
   connectionTimeout?: number;
+  skipIceGathering?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
   peerConnectionFactory?: PeerConnectionFactory;
@@ -29,6 +30,7 @@ export class WHEPClient {
   private readonly url: string;
   private readonly iceServers: RTCIceServer[];
   private readonly connectionTimeout: number;
+  private readonly skipIceGathering: boolean;
   private readonly onStats?: (report: RTCStatsReport) => void;
   private readonly statsIntervalMs: number;
   private readonly pcFactory: PeerConnectionFactory;
@@ -47,6 +49,7 @@ export class WHEPClient {
     this.url = config.url;
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
     this.connectionTimeout = config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
+    this.skipIceGathering = config.skipIceGathering ?? true;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
     this.pcFactory =
@@ -81,7 +84,9 @@ export class WHEPClient {
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
 
-    await this.waitForIceGathering();
+    if (!this.skipIceGathering) {
+      await this.waitForIceGathering();
+    }
 
     this.abortController = new AbortController();
     const timeoutId = this.timers.setTimeout(

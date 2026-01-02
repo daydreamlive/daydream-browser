@@ -33,6 +33,7 @@ export interface PlayerOptions {
   reconnect?: ReconnectConfig;
   iceServers?: RTCIceServer[];
   connectionTimeout?: number;
+  skipIceGathering?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
 }

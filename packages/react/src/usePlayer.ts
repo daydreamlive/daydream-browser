@@ -18,6 +18,7 @@ export interface UsePlayerOptions {
   reconnect?: ReconnectConfig;
   iceServers?: RTCIceServer[];
   connectionTimeout?: number;
+  skipIceGathering?: boolean;
   autoPlay?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
@@ -110,6 +111,7 @@ export function usePlayer(
       reconnect: optionsRef.current?.reconnect,
       iceServers: optionsRef.current?.iceServers,
       connectionTimeout: optionsRef.current?.connectionTimeout,
+      skipIceGathering: optionsRef.current?.skipIceGathering,
       onStats: optionsRef.current?.onStats,
       statsIntervalMs: optionsRef.current?.statsIntervalMs,
     });
