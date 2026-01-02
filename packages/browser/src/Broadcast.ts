@@ -139,12 +139,12 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     const pc = this.whipClient.getPeerConnection();
     if (!pc) return;
 
-    pc.onconnectionstatechange = () => {
+    pc.oniceconnectionstatechange = () => {
       if (this.state === "ended") return;
 
-      const connState = pc.connectionState;
+      const iceState = pc.iceConnectionState;
 
-      if (connState === "connected") {
+      if (iceState === "connected" || iceState === "completed") {
         this.clearGraceTimeout();
         if (this.state === "reconnecting") {
           this.stateMachine.transition("live");
@@ -153,13 +153,13 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
         return;
       }
 
-      if (connState === "disconnected") {
+      if (iceState === "disconnected") {
         this.clearGraceTimeout();
         this.whipClient.restartIce();
 
         this.disconnectedGraceTimeout = setTimeout(() => {
           if (this.state === "ended") return;
-          const currentState = pc.connectionState;
+          const currentState = pc.iceConnectionState;
           if (currentState === "disconnected") {
             this.scheduleReconnect();
           }
@@ -167,7 +167,7 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
         return;
       }
 
-      if (connState === "failed" || connState === "closed") {
+      if (iceState === "failed" || iceState === "closed") {
         this.clearGraceTimeout();
         this.scheduleReconnect();
       }
