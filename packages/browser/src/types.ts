@@ -38,6 +38,12 @@ export interface ReconnectConfig {
   baseDelayMs?: number;
 }
 
+export interface ReconnectInfo {
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+}
+
 export interface VideoConfig {
   bitrate?: number;
   maxFramerate?: number;
@@ -46,11 +52,13 @@ export interface VideoConfig {
 export interface BroadcastEventMap {
   stateChange: (state: BroadcastState) => void;
   error: (error: DaydreamError) => void;
+  reconnect: (info: ReconnectInfo) => void;
 }
 
 export interface PlayerEventMap {
   stateChange: (state: PlayerState) => void;
   error: (error: DaydreamError) => void;
+  reconnect: (info: ReconnectInfo) => void;
 }
 
 export interface DaydreamError extends Error {

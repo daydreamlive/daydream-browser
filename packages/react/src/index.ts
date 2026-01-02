@@ -3,11 +3,13 @@ import {
   useBroadcast as baseUseBroadcast,
   type UseBroadcastOptions,
   type UseBroadcastReturn,
+  type UseBroadcastStatus,
 } from "./useBroadcast";
 import {
   usePlayer as baseUsePlayer,
   type UsePlayerOptions,
   type UsePlayerReturn,
+  type UsePlayerStatus,
 } from "./usePlayer";
 
 export function useBroadcast(options: UseBroadcastOptions): UseBroadcastReturn {
@@ -24,6 +26,18 @@ export function usePlayer(
 export type {
   UseBroadcastOptions,
   UseBroadcastReturn,
+  UseBroadcastStatus,
   UsePlayerOptions,
   UsePlayerReturn,
+  UsePlayerStatus,
 };
+
+export type {
+  BroadcastState,
+  PlayerState,
+  ReconnectConfig,
+  ReconnectInfo,
+  VideoConfig,
+  DaydreamError,
+  DaydreamErrorCode,
+} from "@daydreamlive/browser";

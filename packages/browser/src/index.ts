@@ -36,6 +36,7 @@ export type {
   BroadcastState,
   PlayerState,
   ReconnectConfig,
+  ReconnectInfo,
   VideoConfig,
   BroadcastEventMap,
   PlayerEventMap,

@@ -5,6 +5,7 @@ import type {
   BroadcastState,
   DaydreamError,
   ReconnectConfig,
+  ReconnectInfo,
   VideoConfig,
 } from "@daydreamlive/browser";
 
@@ -18,22 +19,28 @@ export interface UseBroadcastOptions {
 
 export type BroadcastFactory = (options: BroadcastOptions) => Broadcast;
 
+export type UseBroadcastStatus =
+  | { state: "idle" }
+  | { state: "connecting" }
+  | { state: "live"; whepUrl: string }
+  | { state: "reconnecting"; whepUrl: string; reconnectInfo: ReconnectInfo }
+  | { state: "ended" }
+  | { state: "error"; error: DaydreamError };
+
 export interface UseBroadcastReturn {
-  state: BroadcastState | "idle";
-  whepUrl: string | null;
-  error: DaydreamError | null;
+  status: UseBroadcastStatus;
   start: (stream: MediaStream) => Promise<void>;
   stop: () => Promise<void>;
+  setMaxFramerate: (fps?: number) => void;
 }
 
 export function useBroadcast(
   options: UseBroadcastOptions,
   factory: BroadcastFactory,
 ): UseBroadcastReturn {
-  const [state, setState] = useState<BroadcastState | "idle">("idle");
-  const [whepUrl, setWhepUrl] = useState<string | null>(null);
-  const [error, setError] = useState<DaydreamError | null>(null);
+  const [status, setStatus] = useState<UseBroadcastStatus>({ state: "idle" });
   const broadcastRef = useRef<Broadcast | null>(null);
+  const whepUrlRef = useRef<string | null>(null);
   const optionsRef = useRef(options);
   const factoryRef = useRef(factory);
 
@@ -51,12 +58,33 @@ export function useBroadcast(
     };
   }, []);
 
-  const start = useCallback(async (stream: MediaStream) => {
-    setError(null);
+  const updateStatus = useCallback((newState: BroadcastState, error?: DaydreamError) => {
+    const whepUrl = whepUrlRef.current;
+    switch (newState) {
+      case "connecting":
+        setStatus({ state: "connecting" });
+        break;
+      case "live":
+        setStatus({ state: "live", whepUrl: whepUrl! });
+        break;
+      case "reconnecting":
+        // reconnectInfo will be set by the reconnect event
+        break;
+      case "ended":
+        setStatus({ state: "ended" });
+        break;
+      case "error":
+        setStatus({ state: "error", error: error! });
+        break;
+    }
+  }, []);
 
+  const start = useCallback(async (stream: MediaStream) => {
     if (broadcastRef.current) {
       await broadcastRef.current.stop();
     }
+
+    setStatus({ state: "connecting" });
 
     try {
       const broadcast = factoryRef.current({
@@ -67,38 +95,48 @@ export function useBroadcast(
       broadcastRef.current = broadcast;
 
       broadcast.on("stateChange", (newState) => {
-        setState(newState);
-        if (newState === "live") {
-          setWhepUrl(broadcast.whepUrl);
+        if (newState === "live" || newState === "reconnecting") {
+          whepUrlRef.current = broadcast.whepUrl;
         }
+        updateStatus(newState);
       });
 
       broadcast.on("error", (err) => {
-        setError(err);
+        updateStatus("error", err);
+      });
+
+      broadcast.on("reconnect", (info) => {
+        setStatus({
+          state: "reconnecting",
+          whepUrl: whepUrlRef.current!,
+          reconnectInfo: info,
+        });
       });
 
       await broadcast.connect();
-      setState(broadcast.state);
-      setWhepUrl(broadcast.whepUrl);
+      whepUrlRef.current = broadcast.whepUrl;
+      updateStatus(broadcast.state);
     } catch (err) {
-      setError(err as DaydreamError);
-      setState("error");
+      setStatus({ state: "error", error: err as DaydreamError });
       throw err;
     }
-  }, []);
+  }, [updateStatus]);
 
   const stop = useCallback(async () => {
     await broadcastRef.current?.stop();
     broadcastRef.current = null;
-    setWhepUrl(null);
-    setState("idle");
+    whepUrlRef.current = null;
+    setStatus({ state: "idle" });
+  }, []);
+
+  const setMaxFramerate = useCallback((fps?: number) => {
+    broadcastRef.current?.setMaxFramerate(fps);
   }, []);
 
   return {
-    state,
-    whepUrl,
-    error,
+    status,
     start,
     stop,
+    setMaxFramerate,
   };
 }

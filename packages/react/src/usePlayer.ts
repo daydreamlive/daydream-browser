@@ -11,6 +11,7 @@ import type {
   PlayerState,
   DaydreamError,
   ReconnectConfig,
+  ReconnectInfo,
 } from "@daydreamlive/browser";
 
 export interface UsePlayerOptions {
@@ -25,9 +26,16 @@ export type PlayerFactory = (
   options?: PlayerOptions,
 ) => Player;
 
+export type UsePlayerStatus =
+  | { state: "idle" }
+  | { state: "connecting" }
+  | { state: "playing" }
+  | { state: "buffering"; reconnectInfo: ReconnectInfo }
+  | { state: "ended" }
+  | { state: "error"; error: DaydreamError };
+
 export interface UsePlayerReturn {
-  state: PlayerState | "idle";
-  error: DaydreamError | null;
+  status: UsePlayerStatus;
   play: () => Promise<void>;
   stop: () => Promise<void>;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -38,8 +46,7 @@ export function usePlayer(
   options: UsePlayerOptions | undefined,
   factory: PlayerFactory,
 ): UsePlayerReturn {
-  const [state, setState] = useState<PlayerState | "idle">("idle");
-  const [error, setError] = useState<DaydreamError | null>(null);
+  const [status, setStatus] = useState<UsePlayerStatus>({ state: "idle" });
   const playerRef = useRef<Player | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const optionsRef = useRef(options);
@@ -64,17 +71,37 @@ export function usePlayer(
     };
   }, []);
 
+  const updateStatus = useCallback((newState: PlayerState, error?: DaydreamError) => {
+    switch (newState) {
+      case "connecting":
+        setStatus({ state: "connecting" });
+        break;
+      case "playing":
+        setStatus({ state: "playing" });
+        break;
+      case "buffering":
+        // reconnectInfo will be set by the reconnect event
+        break;
+      case "ended":
+        setStatus({ state: "ended" });
+        break;
+      case "error":
+        setStatus({ state: "error", error: error! });
+        break;
+    }
+  }, []);
+
   const play = useCallback(async () => {
     const currentWhepUrl = whepUrlRef.current;
     if (!currentWhepUrl) {
       return;
     }
 
-    setError(null);
-
     if (playerRef.current) {
       await playerRef.current.stop();
     }
+
+    setStatus({ state: "connecting" });
 
     try {
       const player = factoryRef.current(currentWhepUrl, {
@@ -86,15 +113,19 @@ export function usePlayer(
       playerRef.current = player;
 
       player.on("stateChange", (newState) => {
-        setState(newState);
+        updateStatus(newState);
       });
 
       player.on("error", (err) => {
-        setError(err);
+        updateStatus("error", err);
+      });
+
+      player.on("reconnect", (info) => {
+        setStatus({ state: "buffering", reconnectInfo: info });
       });
 
       await player.connect();
-      setState(player.state);
+      updateStatus(player.state);
 
       if (videoRef.current) {
         player.attachTo(videoRef.current);
@@ -107,21 +138,19 @@ export function usePlayer(
         }
       }
     } catch (err) {
-      setError(err as DaydreamError);
-      setState("error");
+      setStatus({ state: "error", error: err as DaydreamError });
       throw err;
     }
-  }, []);
+  }, [updateStatus]);
 
   const stop = useCallback(async () => {
     await playerRef.current?.stop();
     playerRef.current = null;
-    setState("idle");
+    setStatus({ state: "idle" });
   }, []);
 
   return {
-    state,
-    error,
+    status,
     play,
     stop,
     videoRef,

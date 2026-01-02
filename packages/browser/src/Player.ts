@@ -3,6 +3,7 @@ import type {
   PlayerEventMap,
   PlayerOptions,
   ReconnectConfig,
+  ReconnectInfo,
   DaydreamError,
 } from "./types";
 import { WHEPClient, type WHEPClientConfig } from "./internal/WHEPClient";
@@ -64,6 +65,17 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
 
   get stream(): MediaStream | null {
     return this._stream;
+  }
+
+  get reconnectInfo(): ReconnectInfo | null {
+    if (this.state !== "buffering") return null;
+    const baseDelay = this.reconnectConfig.baseDelayMs ?? 200;
+    const delay = this.calculateReconnectDelay(this.reconnectAttempts - 1, baseDelay);
+    return {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.reconnectConfig.maxAttempts ?? 30,
+      delayMs: delay,
+    };
   }
 
   async connect(): Promise<void> {
@@ -184,6 +196,12 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       baseDelay,
     );
     this.reconnectAttempts++;
+
+    this.emit("reconnect", {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.reconnectConfig.maxAttempts ?? 30,
+      delayMs: delay,
+    });
 
     this.reconnectTimeout = setTimeout(async () => {
       if (this.state === "ended") return;

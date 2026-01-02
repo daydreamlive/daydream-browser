@@ -16,7 +16,7 @@ npm install @daydreamlive/react
 import { useBroadcast } from "@daydreamlive/react";
 
 function Broadcaster({ whipUrl }: { whipUrl: string }) {
-  const { state, whepUrl, error, start, stop } = useBroadcast({
+  const { status, start, stop } = useBroadcast({
     whipUrl,
     reconnect: { enabled: true },
   });
@@ -28,8 +28,10 @@ function Broadcaster({ whipUrl }: { whipUrl: string }) {
 
   return (
     <div>
-      <p>State: {state}</p>
-      <button onClick={handleStart} disabled={state === "live"}>
+      <p>State: {status.state}</p>
+      {status.state === "live" && <p>WHEP URL: {status.whepUrl}</p>}
+      {status.state === "error" && <p>Error: {status.error.message}</p>}
+      <button onClick={handleStart} disabled={status.state === "live"}>
         Start
       </button>
       <button onClick={stop}>Stop</button>
@@ -44,12 +46,22 @@ function Broadcaster({ whipUrl }: { whipUrl: string }) {
 import { usePlayer } from "@daydreamlive/react";
 
 function Player({ whepUrl }: { whepUrl: string }) {
-  const { state, error, videoRef } = usePlayer(whepUrl, {
+  const { status, play, stop, videoRef } = usePlayer(whepUrl, {
     autoPlay: true,
     reconnect: { enabled: true },
   });
 
-  return <video ref={videoRef} autoPlay playsInline muted />;
+  return (
+    <div>
+      <p>State: {status.state}</p>
+      {status.state === "error" && <p>Error: {status.error.message}</p>}
+      <video ref={videoRef} autoPlay playsInline muted />
+      <button onClick={play} disabled={status.state === "playing"}>
+        Play
+      </button>
+      <button onClick={stop}>Stop</button>
+    </div>
+  );
 }
 ```
 
@@ -57,11 +69,33 @@ function Player({ whepUrl }: { whepUrl: string }) {
 
 ### `useBroadcast(options)`
 
-Returns: `{ state, whepUrl, error, start, stop }`
+Returns: `{ status, start, stop, setMaxFramerate }`
+
+- `status`: `UseBroadcastStatus` - Discriminated union with `state` property
+  - `{ state: "idle" }`
+  - `{ state: "connecting" }`
+  - `{ state: "live", whepUrl: string }`
+  - `{ state: "reconnecting", whepUrl: string, reconnectInfo: ReconnectInfo }`
+  - `{ state: "ended" }`
+  - `{ state: "error", error: DaydreamError }`
+- `start(stream: MediaStream)`: Start broadcasting
+- `stop()`: Stop broadcasting
+- `setMaxFramerate(fps?: number)`: Set max framerate
 
 ### `usePlayer(whepUrl, options?)`
 
-Returns: `{ state, error, play, stop, videoRef }`
+Returns: `{ status, play, stop, videoRef }`
+
+- `status`: `UsePlayerStatus` - Discriminated union with `state` property
+  - `{ state: "idle" }`
+  - `{ state: "connecting" }`
+  - `{ state: "playing" }`
+  - `{ state: "buffering", reconnectInfo: ReconnectInfo }`
+  - `{ state: "ended" }`
+  - `{ state: "error", error: DaydreamError }`
+- `play()`: Start playing
+- `stop()`: Stop playing
+- `videoRef`: Ref to attach to `<video>` element
 
 ## License
 

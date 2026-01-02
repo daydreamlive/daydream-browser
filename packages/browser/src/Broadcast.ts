@@ -3,6 +3,7 @@ import type {
   BroadcastEventMap,
   BroadcastOptions,
   ReconnectConfig,
+  ReconnectInfo,
   DaydreamError,
 } from "./types";
 import { WHIPClient, type WHIPClientConfig } from "./internal/WHIPClient";
@@ -69,6 +70,17 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     return this.currentStream;
   }
 
+  get reconnectInfo(): ReconnectInfo | null {
+    if (this.state !== "reconnecting") return null;
+    const baseDelay = this.reconnectConfig.baseDelayMs ?? 1000;
+    const delay = baseDelay * Math.pow(2, this.reconnectAttempts - 1);
+    return {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.reconnectConfig.maxAttempts ?? 5,
+      delayMs: delay,
+    };
+  }
+
   async connect(): Promise<void> {
     try {
       const result = await this.whipClient.connect(this.currentStream);
@@ -94,6 +106,10 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
 
     await this.whipClient.disconnect();
     this.clearListeners();
+  }
+
+  setMaxFramerate(fps?: number): void {
+    this.whipClient.setMaxFramerate(fps);
   }
 
   async replaceStream(newStream: MediaStream): Promise<void> {
@@ -198,6 +214,12 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 1000;
     const delay = baseDelay * Math.pow(2, this.reconnectAttempts);
     this.reconnectAttempts++;
+
+    this.emit("reconnect", {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.reconnectConfig.maxAttempts ?? 5,
+      delayMs: delay,
+    });
 
     this.reconnectTimeout = setTimeout(async () => {
       if (this.state === "ended") return;
