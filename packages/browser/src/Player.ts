@@ -70,7 +70,10 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   get reconnectInfo(): ReconnectInfo | null {
     if (this.state !== "buffering") return null;
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 200;
-    const delay = this.calculateReconnectDelay(this.reconnectAttempts - 1, baseDelay);
+    const delay = this.calculateReconnectDelay(
+      this.reconnectAttempts - 1,
+      baseDelay,
+    );
     return {
       attempt: this.reconnectAttempts,
       maxAttempts: this.reconnectConfig.maxAttempts ?? 30,
@@ -85,7 +88,10 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       this.stateMachine.transition("playing");
       this.reconnectAttempts = 0;
     } catch (error) {
-      if (this.reconnectConfig.enabled && this.reconnectAttempts < (this.reconnectConfig.maxAttempts ?? 30)) {
+      if (
+        this.reconnectConfig.enabled &&
+        this.reconnectAttempts < (this.reconnectConfig.maxAttempts ?? 30)
+      ) {
         this.scheduleReconnect();
         return;
       }
@@ -180,7 +186,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       return;
     }
 
-    const maxAttempts = this.reconnectConfig.maxAttempts ?? 10;
+    const maxAttempts = this.reconnectConfig.maxAttempts ?? 30;
 
     if (this.reconnectAttempts >= maxAttempts) {
       this.stateMachine.transition("ended");
@@ -190,7 +196,7 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     this.clearReconnectTimeout();
     this.stateMachine.transition("buffering");
 
-    const baseDelay = this.reconnectConfig.baseDelayMs ?? 300;
+    const baseDelay = this.reconnectConfig.baseDelayMs ?? 200;
     const delay = this.calculateReconnectDelay(
       this.reconnectAttempts,
       baseDelay,
