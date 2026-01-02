@@ -86,41 +86,48 @@ export function useBroadcast(
   const start = useCallback(async (stream: MediaStream) => {
     if (broadcastRef.current) {
       await broadcastRef.current.stop();
+      broadcastRef.current = null;
     }
 
     setStatus({ state: "connecting" });
 
+    const broadcast = factoryRef.current({
+      stream,
+      ...optionsRef.current,
+    });
+
+    broadcastRef.current = broadcast;
+
+    broadcast.on("stateChange", (newState) => {
+      // Guard against events from stopped broadcast
+      if (broadcastRef.current !== broadcast) return;
+      if (newState === "live" || newState === "reconnecting") {
+        whepUrlRef.current = broadcast.whepUrl;
+      }
+      updateStatus(newState);
+    });
+
+    broadcast.on("error", (err) => {
+      if (broadcastRef.current !== broadcast) return;
+      updateStatus("error", err);
+    });
+
+    broadcast.on("reconnect", (info) => {
+      if (broadcastRef.current !== broadcast) return;
+      setStatus({
+        state: "reconnecting",
+        whepUrl: whepUrlRef.current!,
+        reconnectInfo: info,
+      });
+    });
+
     try {
-      const broadcast = factoryRef.current({
-        stream,
-        ...optionsRef.current,
-      });
-
-      broadcastRef.current = broadcast;
-
-      broadcast.on("stateChange", (newState) => {
-        if (newState === "live" || newState === "reconnecting") {
-          whepUrlRef.current = broadcast.whepUrl;
-        }
-        updateStatus(newState);
-      });
-
-      broadcast.on("error", (err) => {
-        updateStatus("error", err);
-      });
-
-      broadcast.on("reconnect", (info) => {
-        setStatus({
-          state: "reconnecting",
-          whepUrl: whepUrlRef.current!,
-          reconnectInfo: info,
-        });
-      });
-
       await broadcast.connect();
+      if (broadcastRef.current !== broadcast) return;
       whepUrlRef.current = broadcast.whepUrl;
       updateStatus(broadcast.state);
     } catch (err) {
+      if (broadcastRef.current !== broadcast) return;
       setStatus({ state: "error", error: err as DaydreamError });
       throw err;
     }

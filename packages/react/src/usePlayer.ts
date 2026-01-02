@@ -101,40 +101,46 @@ export function usePlayer(
 
     if (playerRef.current) {
       await playerRef.current.stop();
+      playerRef.current = null;
     }
 
     setStatus({ state: "connecting" });
 
-    try {
-      const player = factoryRef.current(currentWhepUrl, {
-        reconnect: optionsRef.current?.reconnect,
-        iceServers: optionsRef.current?.iceServers,
-        connectionTimeout: optionsRef.current?.connectionTimeout,
-        onStats: optionsRef.current?.onStats,
-        statsIntervalMs: optionsRef.current?.statsIntervalMs,
-      });
+    const player = factoryRef.current(currentWhepUrl, {
+      reconnect: optionsRef.current?.reconnect,
+      iceServers: optionsRef.current?.iceServers,
+      connectionTimeout: optionsRef.current?.connectionTimeout,
+      onStats: optionsRef.current?.onStats,
+      statsIntervalMs: optionsRef.current?.statsIntervalMs,
+    });
 
-      playerRef.current = player;
+    playerRef.current = player;
 
-      player.on("stateChange", (newState) => {
-        updateStatus(newState);
-        // Re-attach stream after reconnect
-        if (newState === "playing" && videoRef.current && player.stream) {
-          if (videoRef.current.srcObject !== player.stream) {
-            player.attachTo(videoRef.current);
-          }
+    player.on("stateChange", (newState) => {
+      // Guard against events from stopped player
+      if (playerRef.current !== player) return;
+      updateStatus(newState);
+      // Re-attach stream after reconnect
+      if (newState === "playing" && videoRef.current && player.stream) {
+        if (videoRef.current.srcObject !== player.stream) {
+          player.attachTo(videoRef.current);
         }
-      });
+      }
+    });
 
-      player.on("error", (err) => {
-        updateStatus("error", err);
-      });
+    player.on("error", (err) => {
+      if (playerRef.current !== player) return;
+      updateStatus("error", err);
+    });
 
-      player.on("reconnect", (info) => {
-        setStatus({ state: "buffering", reconnectInfo: info });
-      });
+    player.on("reconnect", (info) => {
+      if (playerRef.current !== player) return;
+      setStatus({ state: "buffering", reconnectInfo: info });
+    });
 
+    try {
       await player.connect();
+      if (playerRef.current !== player) return;
       updateStatus(player.state);
 
       if (videoRef.current) {
@@ -148,6 +154,7 @@ export function usePlayer(
         }
       }
     } catch (err) {
+      if (playerRef.current !== player) return;
       setStatus({ state: "error", error: err as DaydreamError });
       throw err;
     }
