@@ -40,4 +40,23 @@ export type {
   VideoConfig,
   DaydreamError,
   DaydreamErrorCode,
+  // Compositor types
+  Compositor,
+  CompositorOptions,
+  CompositorEvent,
+  CompositorEventMap,
+  Source,
+  VideoSource,
+  CanvasSource,
+  CustomSource,
+  Size,
+  FitMode,
+  ContentHint,
 } from "@daydreamlive/browser";
+
+export {
+  CompositorProvider,
+  useCompositor,
+  type CompositorApi,
+  type CompositorProviderProps,
+} from "./useCompositor";

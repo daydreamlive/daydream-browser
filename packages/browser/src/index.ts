@@ -54,3 +54,19 @@ export {
 
 export { Broadcast, type BroadcastConfig } from "./Broadcast";
 export { Player, type PlayerConfig } from "./Player";
+export { createCompositor } from "./Compositor";
+
+export type {
+  Compositor,
+  CompositorOptions,
+  CompositorEvent,
+  CompositorEventMap,
+  Source,
+  VideoSource,
+  CanvasSource,
+  CustomSource,
+  Size,
+  FitMode,
+  ContentHint,
+  Ctx2D,
+} from "./types";
