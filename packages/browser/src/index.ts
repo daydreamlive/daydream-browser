@@ -31,6 +31,7 @@ export {
 } from "./errors";
 
 export type {
+  AudioConfig,
   BroadcastOptions,
   PlayerOptions,
   BroadcastState,

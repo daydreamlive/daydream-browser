@@ -53,10 +53,14 @@ function BroadcasterPanel({
   const [isPending, startTransition] = useTransition();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const { state, whepUrl, error, start, stop } = useBroadcast({
+  const { status, start, stop } = useBroadcast({
     whipUrl: streamInfo?.whipUrl ?? "",
     reconnect: { enabled: true, maxAttempts: 5, baseDelayMs: 1000 },
   });
+
+  const state = status.state;
+  const whepUrl = status.state === "live" || status.state === "reconnecting" ? status.whepUrl : null;
+  const error = status.state === "error" ? status.error : null;
 
   useEffect(() => {
     onWhepUrlChange(whepUrl);
@@ -170,12 +174,14 @@ function PlayerPanel({
   whepUrl: string | null;
   started: boolean;
 }) {
-  const { state, error, videoRef, play, stop } = usePlayer(whepUrl, {
+  const { status, videoRef, play, stop } = usePlayer(whepUrl, {
     autoPlay: true,
     reconnect: { enabled: true, maxAttempts: 10, baseDelayMs: 300 },
   });
   const [videoReady, setVideoReady] = useState(false);
 
+  const state = status.state;
+  const error = status.state === "error" ? status.error : null;
   const isPlaying = state === "playing";
   const showSpinner = started && !videoReady;
 

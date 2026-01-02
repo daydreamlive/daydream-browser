@@ -240,6 +240,8 @@ export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
     whepUrl,
     reconnect: options?.reconnect,
     whepConfig: {
+      iceServers: options?.iceServers,
+      connectionTimeout: options?.connectionTimeout,
       onStats: options?.onStats,
       statsIntervalMs: options?.statsIntervalMs,
     },

@@ -16,6 +16,8 @@ import type {
 
 export interface UsePlayerOptions {
   reconnect?: ReconnectConfig;
+  iceServers?: RTCIceServer[];
+  connectionTimeout?: number;
   autoPlay?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
@@ -106,6 +108,8 @@ export function usePlayer(
     try {
       const player = factoryRef.current(currentWhepUrl, {
         reconnect: optionsRef.current?.reconnect,
+        iceServers: optionsRef.current?.iceServers,
+        connectionTimeout: optionsRef.current?.connectionTimeout,
         onStats: optionsRef.current?.onStats,
         statsIntervalMs: optionsRef.current?.statsIntervalMs,
       });
@@ -114,6 +118,12 @@ export function usePlayer(
 
       player.on("stateChange", (newState) => {
         updateStatus(newState);
+        // Re-attach stream after reconnect
+        if (newState === "playing" && videoRef.current && player.stream) {
+          if (videoRef.current.srcObject !== player.stream) {
+            player.attachTo(videoRef.current);
+          }
+        }
       });
 
       player.on("error", (err) => {

@@ -14,6 +14,7 @@ import {
 export interface WHEPClientConfig {
   url: string;
   iceServers?: RTCIceServer[];
+  connectionTimeout?: number;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
   peerConnectionFactory?: PeerConnectionFactory;
@@ -22,9 +23,12 @@ export interface WHEPClientConfig {
   mediaStreamFactory?: MediaStreamFactory;
 }
 
+const DEFAULT_CONNECTION_TIMEOUT = 10000;
+
 export class WHEPClient {
   private readonly url: string;
   private readonly iceServers: RTCIceServer[];
+  private readonly connectionTimeout: number;
   private readonly onStats?: (report: RTCStatsReport) => void;
   private readonly statsIntervalMs: number;
   private readonly pcFactory: PeerConnectionFactory;
@@ -42,6 +46,7 @@ export class WHEPClient {
   constructor(config: WHEPClientConfig) {
     this.url = config.url;
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
+    this.connectionTimeout = config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
     this.pcFactory =
@@ -81,7 +86,7 @@ export class WHEPClient {
     this.abortController = new AbortController();
     const timeoutId = this.timers.setTimeout(
       () => this.abortController?.abort(),
-      10000,
+      this.connectionTimeout,
     );
 
     try {

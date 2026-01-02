@@ -21,6 +21,9 @@ export interface BroadcastOptions {
   stream: MediaStream;
   reconnect?: ReconnectConfig;
   video?: VideoConfig;
+  audio?: AudioConfig;
+  iceServers?: RTCIceServer[];
+  connectionTimeout?: number;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
   onResponse?: (response: Response) => WHIPResponseResult | void;
@@ -28,6 +31,8 @@ export interface BroadcastOptions {
 
 export interface PlayerOptions {
   reconnect?: ReconnectConfig;
+  iceServers?: RTCIceServer[];
+  connectionTimeout?: number;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
 }
@@ -47,6 +52,10 @@ export interface ReconnectInfo {
 export interface VideoConfig {
   bitrate?: number;
   maxFramerate?: number;
+}
+
+export interface AudioConfig {
+  bitrate?: number;
 }
 
 export interface BroadcastEventMap {

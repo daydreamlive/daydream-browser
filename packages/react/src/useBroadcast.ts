@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  AudioConfig,
   Broadcast,
   BroadcastOptions,
   BroadcastState,
@@ -13,6 +14,9 @@ export interface UseBroadcastOptions {
   whipUrl: string;
   reconnect?: ReconnectConfig;
   video?: VideoConfig;
+  audio?: AudioConfig;
+  iceServers?: RTCIceServer[];
+  connectionTimeout?: number;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
 }

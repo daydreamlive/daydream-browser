@@ -56,6 +56,7 @@ export interface WHIPClientConfig {
   videoBitrate?: number;
   audioBitrate?: number;
   maxFramerate?: number;
+  connectionTimeout?: number;
   skipIceGathering?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
@@ -94,11 +95,14 @@ function preferH264(sdp: string): string {
 
 const sharedRedirectCache = new LRURedirectCache();
 
+const DEFAULT_CONNECTION_TIMEOUT = 10000;
+
 export class WHIPClient {
   private readonly url: string;
   private readonly iceServers: RTCIceServer[];
   private readonly videoBitrate: number;
   private readonly audioBitrate: number;
+  private readonly connectionTimeout: number;
   private readonly onStats?: (report: RTCStatsReport) => void;
   private readonly statsIntervalMs: number;
   private readonly onResponse?: (
@@ -126,6 +130,7 @@ export class WHIPClient {
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
     this.videoBitrate = config.videoBitrate ?? DEFAULT_VIDEO_BITRATE;
     this.audioBitrate = config.audioBitrate ?? DEFAULT_AUDIO_BITRATE;
+    this.connectionTimeout = config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
     this.maxFramerate = config.maxFramerate;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
@@ -186,7 +191,7 @@ export class WHIPClient {
     this.abortController = new AbortController();
     const timeoutId = this.timers.setTimeout(
       () => this.abortController?.abort(),
-      10000,
+      this.connectionTimeout,
     );
 
     try {
