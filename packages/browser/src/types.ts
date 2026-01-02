@@ -119,7 +119,7 @@ export type CanvasSource = {
 
 export type CustomSource = {
   kind: "custom";
-  onStart: (ctx: Ctx2D) => void | (() => void);
+  onStart?: (ctx: Ctx2D) => void | (() => void);
   onFrame?: (ctx: Ctx2D, timestamp: number) => void;
 };
 

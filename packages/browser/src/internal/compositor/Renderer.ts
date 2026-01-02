@@ -48,6 +48,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   let captureCtx: Ctx2D | null = null;
   let offscreen: OffscreenCanvas | HTMLCanvasElement | null = null;
   let offscreenCtx: Ctx2D | null = null;
+  // Secondary canvas for crossfade blending (custom sources)
+  let crossfadeCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+  let crossfadeCtx: Ctx2D | null = null;
 
   // Source state
   let currentSource: Source | null = null;
@@ -103,6 +106,27 @@ export function createRenderer(options: RendererOptions): Renderer {
       offCtx.imageSmoothingEnabled = true;
       offscreen = off;
       offscreenCtx = offCtx;
+    }
+
+    // Create crossfade canvas for blending custom sources
+    try {
+      const cfCanvas = new OffscreenCanvas(pxW, pxH);
+      crossfadeCanvas = cfCanvas;
+      const cfCtx = cfCanvas.getContext("2d", { alpha: true }) as Ctx2D | null;
+      if (cfCtx) {
+        cfCtx.imageSmoothingEnabled = true;
+        crossfadeCtx = cfCtx;
+      }
+    } catch {
+      const cfCanvas = document.createElement("canvas");
+      cfCanvas.width = pxW;
+      cfCanvas.height = pxH;
+      const cfCtx = cfCanvas.getContext("2d", { alpha: true }) as Ctx2D | null;
+      if (cfCtx) {
+        cfCtx.imageSmoothingEnabled = true;
+        crossfadeCanvas = cfCanvas;
+        crossfadeCtx = cfCtx;
+      }
     }
 
     // Initial fill
@@ -194,7 +218,29 @@ export function createRenderer(options: RendererOptions): Renderer {
     const ctx = offscreenCtx;
 
     if (source.kind === "custom") {
-      if (source.onFrame) source.onFrame(ctx, timestamp);
+      // For custom sources during crossfade, render to secondary canvas then blend
+      if (alpha < 1 && crossfadeCtx && crossfadeCanvas) {
+        // Clear crossfade canvas
+        crossfadeCtx.clearRect(
+          0,
+          0,
+          crossfadeCtx.canvas.width,
+          crossfadeCtx.canvas.height,
+        );
+        // Render custom source to crossfade canvas
+        if (source.onFrame) source.onFrame(crossfadeCtx, timestamp);
+        // Blend onto main canvas with alpha
+        const prev = ctx.globalAlpha;
+        try {
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+          ctx.drawImage(crossfadeCanvas as CanvasImageSource, 0, 0);
+        } finally {
+          ctx.globalAlpha = prev;
+        }
+      } else {
+        // Full opacity - render directly
+        if (source.onFrame) source.onFrame(ctx, timestamp);
+      }
       return;
     }
 
@@ -253,7 +299,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       crossfadeStart = null;
 
       // Initialize custom source
-      if (source.kind === "custom") {
+      if (source.kind === "custom" && source.onStart) {
         const cleanup = source.onStart(offscreenCtx!);
         cleanupFn = cleanup || undefined;
         return cleanupFn;
@@ -368,6 +414,14 @@ export function createRenderer(options: RendererOptions): Renderer {
         offscreen.height = pxH;
       }
 
+      if (crossfadeCanvas instanceof HTMLCanvasElement) {
+        crossfadeCanvas.width = pxW;
+        crossfadeCanvas.height = pxH;
+      } else if (crossfadeCanvas instanceof OffscreenCanvas) {
+        crossfadeCanvas.width = pxW;
+        crossfadeCanvas.height = pxH;
+      }
+
       rectCache = new WeakMap();
     },
 
@@ -390,6 +444,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       captureCtx = null;
       offscreen = null;
       offscreenCtx = null;
+      crossfadeCanvas = null;
+      crossfadeCtx = null;
     },
   };
 }

@@ -52,6 +52,7 @@ export type {
   Size,
   FitMode,
   ContentHint,
+  Ctx2D,
 } from "@daydreamlive/browser";
 
 export {
