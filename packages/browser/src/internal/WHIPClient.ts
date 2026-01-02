@@ -56,6 +56,7 @@ export interface WHIPClientConfig {
   videoBitrate?: number;
   audioBitrate?: number;
   maxFramerate?: number;
+  skipIceGathering?: boolean;
   onStats?: (report: RTCStatsReport) => void;
   statsIntervalMs?: number;
   onResponse?: (response: Response) => WHIPResponseResult | void;
@@ -107,6 +108,7 @@ export class WHIPClient {
   private readonly fetch: FetchFn;
   private readonly timers: TimerProvider;
   private readonly redirectCache: RedirectCache;
+  private readonly skipIceGathering: boolean;
 
   private maxFramerate?: number;
   private pc: RTCPeerConnection | null = null;
@@ -133,6 +135,7 @@ export class WHIPClient {
     this.fetch = config.fetch ?? defaultFetch;
     this.timers = config.timers ?? defaultTimerProvider;
     this.redirectCache = config.redirectCache ?? sharedRedirectCache;
+    this.skipIceGathering = config.skipIceGathering ?? true;
   }
 
   async connect(stream: MediaStream): Promise<{ whepUrl: string | null }> {
@@ -176,7 +179,9 @@ export class WHIPClient {
     const enhancedSdp = preferH264(offer.sdp ?? "");
     await this.pc.setLocalDescription({ type: "offer", sdp: enhancedSdp });
 
-    await this.waitForIceGathering();
+    if (!this.skipIceGathering) {
+      await this.waitForIceGathering();
+    }
 
     this.abortController = new AbortController();
     const timeoutId = this.timers.setTimeout(

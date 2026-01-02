@@ -11,7 +11,7 @@ import { TypedEventEmitter } from "./internal/TypedEventEmitter";
 import { createStateMachine, type StateMachine } from "./internal/StateMachine";
 
 const PLAYER_TRANSITIONS: Record<PlayerState, PlayerState[]> = {
-  connecting: ["playing", "error"],
+  connecting: ["playing", "buffering", "error"],
   playing: ["buffering", "ended"],
   buffering: ["playing", "ended"],
   ended: [],
@@ -71,7 +71,12 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
       this._stream = await this.whepClient.connect();
       this.setupConnectionMonitoring();
       this.stateMachine.transition("playing");
+      this.reconnectAttempts = 0;
     } catch (error) {
+      if (this.reconnectConfig.enabled && this.reconnectAttempts < (this.reconnectConfig.maxAttempts ?? 30)) {
+        this.scheduleReconnect();
+        return;
+      }
       this.stateMachine.transition("error");
       const daydreamError =
         error instanceof Error
