@@ -169,7 +169,10 @@ export class WHIPClient {
     this.setCodecPreferences();
     await this.applyBitrateConstraints();
 
-    const offer = await this.pc.createOffer();
+    const offer = await this.pc.createOffer({
+      offerToReceiveAudio: false,
+      offerToReceiveVideo: false,
+    });
     const enhancedSdp = preferH264(offer.sdp ?? "");
     await this.pc.setLocalDescription({ type: "offer", sdp: enhancedSdp });
 
