@@ -13,7 +13,6 @@ WebRTC streaming SDK for [Daydream](https://daydream.live) — real-time AI vide
 
 ```bash
 npm install @daydreamlive/browser
-# or with React
 npm install @daydreamlive/react
 ```
 
