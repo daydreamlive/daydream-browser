@@ -33,6 +33,7 @@ export type {
 };
 
 export type {
+  AudioConfig,
   BroadcastState,
   PlayerState,
   ReconnectConfig,
