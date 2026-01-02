@@ -267,9 +267,14 @@ export class WHIPClient {
         if (this.maxFramerate && this.maxFramerate > 0) {
           encoding.maxFramerate = this.maxFramerate;
         }
+        encoding.scaleResolutionDownBy = 1.0;
+        encoding.priority = "high";
+        encoding.networkPriority = "high";
         params.degradationPreference = "maintain-resolution";
       } else if (sender.track.kind === "audio") {
         encoding.maxBitrate = this.audioBitrate;
+        encoding.priority = "medium";
+        encoding.networkPriority = "medium";
       }
 
       try {
