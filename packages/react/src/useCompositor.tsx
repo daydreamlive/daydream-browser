@@ -26,6 +26,24 @@ export interface CompositorApi {
   has(id: string): boolean;
   list(): Array<{ id: string; source: Source }>;
 
+  /**
+   * Register a source, activate it, and return an unregister function.
+   * Convenience method that combines register + activate with automatic cleanup.
+   *
+   * @example
+   * ```tsx
+   * useEffect(() => {
+   *   const unregister = compositor.use("camera", {
+   *     kind: "video",
+   *     element: videoRef.current,
+   *     fit: "cover",
+   *   });
+   *   return unregister;
+   * }, [compositor]);
+   * ```
+   */
+  use(id: string, source: Source): () => void;
+
   // Active source
   activate(id: string): void;
   deactivate(): void;
@@ -144,6 +162,11 @@ export function CompositorProvider({
       get: (id) => compositorRef.current?.get(id),
       has: (id) => compositorRef.current?.has(id) ?? false,
       list: () => compositorRef.current?.list() ?? [],
+      use: (id, source) => {
+        compositorRef.current?.register(id, source);
+        compositorRef.current?.activate(id);
+        return () => compositorRef.current?.unregister(id);
+      },
 
       // Active source
       activate: (id) => compositorRef.current?.activate(id),
