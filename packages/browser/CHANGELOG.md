@@ -1,5 +1,11 @@
 # @daydreamlive/browser
 
+## 0.3.0
+
+### Minor Changes
+
+- 04e7d31: useSource hook
+
 ## 0.2.0
 
 ### Minor Changes
