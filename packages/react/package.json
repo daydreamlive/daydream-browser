@@ -30,7 +30,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@daydreamlive/browser": "^0.2.0"
+    "@daydreamlive/browser": "*"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
