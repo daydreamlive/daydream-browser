@@ -16,7 +16,6 @@ import {
   type CompositorOptions,
   type Size,
   type Source,
-  type TransitionOptions,
 } from "@daydreamlive/browser";
 
 export interface CompositorApi {
@@ -41,20 +40,16 @@ export interface CompositorApi {
    *   });
    *   return unregister;
    * }, [compositor]);
-   *
-   * // With custom transition duration
-   * compositor.use("camera", source, { durationMs: 300 });
    * ```
    */
-  use(id: string, source: Source, options?: TransitionOptions): () => void;
+  use(id: string, source: Source): () => void;
 
   // Active source
   /**
-   * Activate a registered source with optional transition options.
+   * Activate a registered source.
    * @param id - The source ID to activate
-   * @param options - Optional transition configuration (e.g., { durationMs: 300 })
    */
-  activate(id: string, options?: TransitionOptions): void;
+  activate(id: string): void;
   deactivate(): void;
   readonly activeId: string | null;
 
@@ -171,14 +166,14 @@ export function CompositorProvider({
       get: (id) => compositorRef.current?.get(id),
       has: (id) => compositorRef.current?.has(id) ?? false,
       list: () => compositorRef.current?.list() ?? [],
-      use: (id, source, options) => {
+      use: (id, source) => {
         compositorRef.current?.register(id, source);
-        compositorRef.current?.activate(id, options);
+        compositorRef.current?.activate(id);
         return () => compositorRef.current?.unregister(id);
       },
 
       // Active source
-      activate: (id, options) => compositorRef.current?.activate(id, options),
+      activate: (id) => compositorRef.current?.activate(id),
       deactivate: () => compositorRef.current?.deactivate(),
       get activeId() {
         return compositorRef.current?.activeId ?? null;

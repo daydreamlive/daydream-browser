@@ -63,3 +63,9 @@ export {
   type CompositorApi,
   type CompositorProviderProps,
 } from "./useCompositor";
+
+export {
+  useSource,
+  type UseSourceOptions,
+  type UseSourceReturn,
+} from "./useSource";
