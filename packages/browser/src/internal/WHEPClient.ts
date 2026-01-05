@@ -48,7 +48,8 @@ export class WHEPClient {
   constructor(config: WHEPClientConfig) {
     this.url = config.url;
     this.iceServers = config.iceServers ?? DEFAULT_ICE_SERVERS;
-    this.connectionTimeout = config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
+    this.connectionTimeout =
+      config.connectionTimeout ?? DEFAULT_CONNECTION_TIMEOUT;
     this.skipIceGathering = config.skipIceGathering ?? true;
     this.onStats = config.onStats;
     this.statsIntervalMs = config.statsIntervalMs ?? 5000;
@@ -208,6 +209,11 @@ export class WHEPClient {
     }
 
     if (this.pc) {
+      // Clear event handlers
+      this.pc.oniceconnectionstatechange = null;
+      this.pc.onconnectionstatechange = null;
+      this.pc.ontrack = null;
+
       try {
         this.pc.getTransceivers().forEach((t) => {
           try {

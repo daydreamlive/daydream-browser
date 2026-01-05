@@ -390,6 +390,11 @@ export class WHIPClient {
     }
 
     if (this.pc) {
+      // Clear event handlers
+      this.pc.oniceconnectionstatechange = null;
+      this.pc.onconnectionstatechange = null;
+      this.pc.ontrack = null;
+
       try {
         this.pc.getTransceivers().forEach((t) => {
           try {
@@ -444,7 +449,9 @@ export class WHIPClient {
   }
 
   isConnected(): boolean {
-    return this.pc !== null && this.pc.connectionState === "connected";
+    if (!this.pc) return false;
+    const iceState = this.pc.iceConnectionState;
+    return iceState === "connected" || iceState === "completed";
   }
 
   private getUrlWithCachedRedirect(): string {
