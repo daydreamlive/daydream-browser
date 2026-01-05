@@ -64,10 +64,8 @@ export type {
   Source,
   VideoSource,
   CanvasSource,
-  CustomSource,
   Size,
   FitMode,
   ContentHint,
   Ctx2D,
-  TransitionOptions,
 } from "./types";

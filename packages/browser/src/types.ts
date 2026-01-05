@@ -118,13 +118,7 @@ export type CanvasSource = {
   contentHint?: ContentHint;
 };
 
-export type CustomSource = {
-  kind: "custom";
-  onStart?: (ctx: Ctx2D) => void | (() => void);
-  onFrame?: (ctx: Ctx2D, timestamp: number) => void;
-};
-
-export type Source = VideoSource | CanvasSource | CustomSource;
+export type Source = VideoSource | CanvasSource;
 
 export type Size = {
   width: number;
@@ -132,17 +126,11 @@ export type Size = {
   dpr: number;
 };
 
-export interface TransitionOptions {
-  /** Duration of the crossfade in milliseconds. Overrides the default crossfadeMs. */
-  durationMs?: number;
-}
-
 export interface CompositorOptions {
   width?: number;
   height?: number;
   fps?: number;
   dpr?: number;
-  crossfadeMs?: number;
   sendFps?: number;
   keepalive?: boolean;
   autoUnlockAudio?: boolean;
@@ -168,7 +156,7 @@ export interface Compositor {
   list(): Array<{ id: string; source: Source }>;
 
   // Active source management
-  activate(id: string, options?: TransitionOptions): void;
+  activate(id: string): void;
   deactivate(): void;
   readonly activeId: string | null;
 

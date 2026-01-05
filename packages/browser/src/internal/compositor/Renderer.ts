@@ -4,13 +4,7 @@ export interface RendererOptions {
   width: number;
   height: number;
   dpr: number;
-  crossfadeMs: number;
   keepalive: boolean;
-}
-
-export interface SetActiveSourceOptions {
-  /** Override crossfade duration for this transition only */
-  durationMs?: number;
 }
 
 export interface Renderer {
@@ -18,10 +12,9 @@ export interface Renderer {
   readonly offscreenCtx: Ctx2D;
   readonly size: Size;
 
-  setActiveSource(source: Source | null, options?: SetActiveSourceOptions): (() => void) | void;
+  setActiveSource(source: Source | null): void;
   renderFrame(timestamp: number): void;
   resize(width: number, height: number, dpr: number): void;
-  setCrossfadeMs(ms: number): void;
   setKeepalive(enabled: boolean): void;
   isSourceReady(source: Source): boolean;
   destroy(): void;
@@ -45,7 +38,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     height: options.height,
     dpr: Math.min(2, options.dpr),
   };
-  let crossfadeMs = options.crossfadeMs;
   let keepalive = options.keepalive;
 
   // Canvases
@@ -53,21 +45,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   let captureCtx: Ctx2D | null = null;
   let offscreen: OffscreenCanvas | HTMLCanvasElement | null = null;
   let offscreenCtx: Ctx2D | null = null;
-  // Secondary canvas for crossfade blending (custom sources)
-  let crossfadeCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
-  let crossfadeCtx: Ctx2D | null = null;
 
   // Source state
   let currentSource: Source | null = null;
-  let pendingSource: Source | null = null;
-  let crossfadeStart: number | null = null;
-  let cleanupFn: (() => void) | void = undefined;
-  let transitionDurationMs: number | null = null; // per-transition override
-
-  // Snapshot canvas for crossfade (captures previous frame when source changes)
-  let snapshotCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
-  let snapshotCtx: Ctx2D | null = null;
-  let useSnapshot = false; // true when crossfading from snapshot instead of currentSource
 
   // Rendering state
   let frameIndex = 0;
@@ -119,48 +99,6 @@ export function createRenderer(options: RendererOptions): Renderer {
       offscreenCtx = offCtx;
     }
 
-    // Create crossfade canvas for blending custom sources
-    try {
-      const cfCanvas = new OffscreenCanvas(pxW, pxH);
-      crossfadeCanvas = cfCanvas;
-      const cfCtx = cfCanvas.getContext("2d", { alpha: true }) as Ctx2D | null;
-      if (cfCtx) {
-        cfCtx.imageSmoothingEnabled = true;
-        crossfadeCtx = cfCtx;
-      }
-    } catch {
-      const cfCanvas = document.createElement("canvas");
-      cfCanvas.width = pxW;
-      cfCanvas.height = pxH;
-      const cfCtx = cfCanvas.getContext("2d", { alpha: true }) as Ctx2D | null;
-      if (cfCtx) {
-        cfCtx.imageSmoothingEnabled = true;
-        crossfadeCanvas = cfCanvas;
-        crossfadeCtx = cfCtx;
-      }
-    }
-
-    // Create snapshot canvas for crossfade when source element is unmounted
-    try {
-      const snapCanvas = new OffscreenCanvas(pxW, pxH);
-      snapshotCanvas = snapCanvas;
-      const snapCtx = snapCanvas.getContext("2d", { alpha: false }) as Ctx2D | null;
-      if (snapCtx) {
-        snapCtx.imageSmoothingEnabled = true;
-        snapshotCtx = snapCtx;
-      }
-    } catch {
-      const snapCanvas = document.createElement("canvas");
-      snapCanvas.width = pxW;
-      snapCanvas.height = pxH;
-      const snapCtx = snapCanvas.getContext("2d", { alpha: false }) as Ctx2D | null;
-      if (snapCtx) {
-        snapCtx.imageSmoothingEnabled = true;
-        snapshotCanvas = snapCanvas;
-        snapshotCtx = snapCtx;
-      }
-    }
-
     // Initial fill
     offscreenCtx!.fillStyle = "#111";
     offscreenCtx!.fillRect(0, 0, pxW, pxH);
@@ -187,11 +125,9 @@ export function createRenderer(options: RendererOptions): Renderer {
         (v.videoHeight || 0) > 0
       );
     }
-    if (source.kind === "canvas") {
-      const c = source.element;
-      return (c.width || 0) > 0 && (c.height || 0) > 0;
-    }
-    return true; // custom sources are always ready
+    // canvas
+    const c = source.element;
+    return (c.width || 0) > 0 && (c.height || 0) > 0;
   }
 
   function getDrawRect(
@@ -245,54 +181,21 @@ export function createRenderer(options: RendererOptions): Renderer {
     return { dx, dy, dw, dh };
   }
 
-  function blitSource(source: Source, alpha: number, timestamp: number): void {
+  function blitSource(source: Source): void {
     if (!offscreenCtx) return;
     const ctx = offscreenCtx;
-
-    if (source.kind === "custom") {
-      // For custom sources during crossfade, render to secondary canvas then blend
-      if (alpha < 1 && crossfadeCtx && crossfadeCanvas) {
-        // Clear crossfade canvas
-        crossfadeCtx.clearRect(
-          0,
-          0,
-          crossfadeCtx.canvas.width,
-          crossfadeCtx.canvas.height,
-        );
-        // Render custom source to crossfade canvas
-        if (source.onFrame) source.onFrame(crossfadeCtx, timestamp);
-        // Blend onto main canvas with alpha
-        const prev = ctx.globalAlpha;
-        try {
-          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-          ctx.drawImage(crossfadeCanvas as CanvasImageSource, 0, 0);
-        } finally {
-          ctx.globalAlpha = prev;
-        }
-      } else {
-        // Full opacity - render directly
-        if (source.onFrame) source.onFrame(ctx, timestamp);
-      }
-      return;
-    }
 
     const el = source.element;
     const rect = getDrawRect(el, source.fit ?? "contain");
     if (!rect) return;
 
-    const prev = ctx.globalAlpha;
-    try {
-      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-      ctx.drawImage(
-        el as CanvasImageSource,
-        rect.dx,
-        rect.dy,
-        rect.dw,
-        rect.dh,
-      );
-    } finally {
-      ctx.globalAlpha = prev;
-    }
+    ctx.drawImage(
+      el as CanvasImageSource,
+      rect.dx,
+      rect.dy,
+      rect.dw,
+      rect.dh,
+    );
   }
 
   // Initialize canvas on creation
@@ -313,111 +216,22 @@ export function createRenderer(options: RendererOptions): Renderer {
 
     isSourceReady,
 
-    setActiveSource(source: Source | null, options?: SetActiveSourceOptions): (() => void) | void {
-      // Cleanup previous custom source
-      if (cleanupFn) {
-        cleanupFn();
-        cleanupFn = undefined;
-      }
-
-      if (source === null) {
-        currentSource = null;
-        pendingSource = null;
-        crossfadeStart = null;
-        useSnapshot = false;
-        transitionDurationMs = null;
-        return;
-      }
-
-      // Set per-transition duration override
-      transitionDurationMs = options?.durationMs ?? null;
-
-      // Capture current frame to snapshot for crossfade
-      // This allows crossfade even if the previous source element is unmounted
-      if (currentSource && offscreenCtx && snapshotCtx && snapshotCanvas) {
-        snapshotCtx.drawImage(
-          offscreenCtx.canvas,
-          0,
-          0,
-        );
-        useSnapshot = true;
-      } else {
-        useSnapshot = false;
-      }
-
-      pendingSource = source;
-      crossfadeStart = null;
-
-      // Initialize custom source
-      if (source.kind === "custom" && source.onStart) {
-        const cleanup = source.onStart(offscreenCtx!);
-        cleanupFn = cleanup || undefined;
-        return cleanupFn;
-      }
+    setActiveSource(source: Source | null): void {
+      currentSource = source;
     },
 
-    renderFrame(timestamp: number): void {
+    renderFrame(_timestamp: number): void {
       const off = offscreenCtx;
       const cap = captureCtx;
       const capCanvas = captureCanvas;
       if (!off || !cap || !capCanvas) return;
 
-      // Check if pending source is ready to start crossfade
-      if (pendingSource && isSourceReady(pendingSource)) {
-        if (crossfadeStart === null) crossfadeStart = timestamp;
-      }
-
       off.globalCompositeOperation = "source-over";
 
-      const willDraw = !!(
-        (pendingSource && isSourceReady(pendingSource)) ||
-        currentSource
-      );
-
-      if (willDraw) {
+      if (currentSource && isSourceReady(currentSource)) {
         off.fillStyle = "#000";
         off.fillRect(0, 0, off.canvas.width, off.canvas.height);
-      }
-
-      // Handle crossfade
-      const fading = pendingSource && crossfadeStart !== null && (currentSource || useSnapshot);
-      if (fading) {
-        const effectiveDuration = transitionDurationMs ?? crossfadeMs;
-        const t = Math.min(1, (timestamp - crossfadeStart!) / effectiveDuration);
-
-        // Draw outgoing frame (from snapshot or currentSource)
-        if (useSnapshot && snapshotCanvas) {
-          // Use captured snapshot for crossfade (handles unmounted elements)
-          const prev = off.globalAlpha;
-          try {
-            off.globalAlpha = Math.max(0, Math.min(1, 1 - t));
-            off.drawImage(snapshotCanvas as CanvasImageSource, 0, 0);
-          } finally {
-            off.globalAlpha = prev;
-          }
-        } else if (currentSource) {
-          blitSource(currentSource, 1 - t, timestamp);
-        }
-
-        // Draw incoming frame
-        blitSource(pendingSource!, t, timestamp);
-
-        if (t >= 1) {
-          currentSource = pendingSource;
-          pendingSource = null;
-          crossfadeStart = null;
-          useSnapshot = false;
-          transitionDurationMs = null; // Reset per-transition override
-        }
-      } else if (pendingSource && !currentSource && !useSnapshot) {
-        if (isSourceReady(pendingSource)) {
-          blitSource(pendingSource, 1, timestamp);
-          currentSource = pendingSource;
-          pendingSource = null;
-          crossfadeStart = null;
-        }
-      } else if (currentSource) {
-        blitSource(currentSource, 1, timestamp);
+        blitSource(currentSource);
       }
 
       // Keepalive pixel flicker
@@ -482,27 +296,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         offscreen.height = pxH;
       }
 
-      if (crossfadeCanvas instanceof HTMLCanvasElement) {
-        crossfadeCanvas.width = pxW;
-        crossfadeCanvas.height = pxH;
-      } else if (crossfadeCanvas instanceof OffscreenCanvas) {
-        crossfadeCanvas.width = pxW;
-        crossfadeCanvas.height = pxH;
-      }
-
-      if (snapshotCanvas instanceof HTMLCanvasElement) {
-        snapshotCanvas.width = pxW;
-        snapshotCanvas.height = pxH;
-      } else if (snapshotCanvas instanceof OffscreenCanvas) {
-        snapshotCanvas.width = pxW;
-        snapshotCanvas.height = pxH;
-      }
-
       rectCache = new WeakMap();
-    },
-
-    setCrossfadeMs(ms: number): void {
-      crossfadeMs = Math.max(0, ms);
     },
 
     setKeepalive(enabled: boolean): void {
@@ -510,21 +304,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
 
     destroy(): void {
-      if (cleanupFn) {
-        cleanupFn();
-        cleanupFn = undefined;
-      }
       currentSource = null;
-      pendingSource = null;
-      useSnapshot = false;
       captureCanvas = null;
       captureCtx = null;
       offscreen = null;
       offscreenCtx = null;
-      crossfadeCanvas = null;
-      crossfadeCtx = null;
-      snapshotCanvas = null;
-      snapshotCtx = null;
     },
   };
 }

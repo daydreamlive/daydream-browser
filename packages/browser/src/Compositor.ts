@@ -10,7 +10,6 @@ import type {
   CompositorOptions,
   Size,
   Source,
-  TransitionOptions,
 } from "./types";
 import type { SourceRegistry } from "./internal/compositor/Registry";
 
@@ -69,7 +68,6 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
       options.dpr ??
         (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1),
     );
-    const crossfadeMs = options.crossfadeMs ?? 500;
     const keepalive = options.keepalive ?? true;
 
     // Create subsystems
@@ -82,7 +80,6 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
       width,
       height,
       dpr,
-      crossfadeMs,
       keepalive,
     });
 
@@ -171,7 +168,7 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
   // Active Source Management
   // ============================================================================
 
-  activate(id: string, options?: TransitionOptions): void {
+  activate(id: string): void {
     if (this.destroyed) return;
 
     const source = this.registry.get(id);
@@ -180,9 +177,7 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
     }
 
     this._activeId = id;
-    this.renderer.setActiveSource(source, {
-      durationMs: options?.durationMs,
-    });
+    this.renderer.setActiveSource(source);
 
     // Start scheduler with video element if applicable
     const videoEl = source.kind === "video" ? source.element : undefined;

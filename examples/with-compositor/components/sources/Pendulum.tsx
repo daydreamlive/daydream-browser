@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useCompositor, type Ctx2D } from "@daydreamlive/react";
+import { useSource } from "@daydreamlive/react";
 
 interface PendulumState {
   angle: number;
@@ -12,78 +12,90 @@ interface PendulumState {
 export const SOURCE_ID = "pendulum";
 
 export function usePendulumSource() {
-  const compositor = useCompositor();
+  const { ref } = useSource<HTMLCanvasElement>(SOURCE_ID, { kind: "canvas" });
   const pendulumRef = useRef<PendulumState[]>([]);
   const initializedRef = useRef(false);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    compositor.register(SOURCE_ID, {
-      kind: "custom",
-      onFrame: (ctx: Ctx2D, timestamp: number) => {
-        const w = ctx.canvas.width;
-        const h = ctx.canvas.height;
-        const t = timestamp * 0.001;
+    const canvas = ref.current;
+    if (!canvas) return;
 
-        // Initialize pendulums
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          const count = 15;
-          pendulumRef.current = Array.from({ length: count }, (_, i) => ({
-            angle: 0,
-            length: 100 + i * 15,
-            phase: (i * Math.PI * 2) / count,
-          }));
-        }
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-        // Dark background
-        ctx.fillStyle = "#0a0a0f";
-        ctx.fillRect(0, 0, w, h);
+    const animate = (timestamp: number) => {
+      const w = canvas.width;
+      const h = canvas.height;
+      const t = timestamp * 0.001;
 
-        const cx = w / 2;
-        const startY = 50;
+      // Initialize pendulums
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        const count = 15;
+        pendulumRef.current = Array.from({ length: count }, (_, i) => ({
+          angle: 0,
+          length: 100 + i * 15,
+          phase: (i * Math.PI * 2) / count,
+        }));
+      }
 
-        // Update and draw pendulums
-        pendulumRef.current.forEach((p, i) => {
-          // Simple harmonic motion with different frequencies
-          const frequency = 0.5 + i * 0.03;
-          p.angle = Math.sin(t * frequency + p.phase) * 0.8;
+      // Dark background
+      ctx.fillStyle = "#0a0a0f";
+      ctx.fillRect(0, 0, w, h);
 
-          const bobX = cx + Math.sin(p.angle) * p.length;
-          const bobY = startY + Math.cos(p.angle) * p.length;
+      const cx = w / 2;
+      const startY = 50;
 
-          const hue = (i * 24 + t * 20) % 360;
+      // Update and draw pendulums
+      pendulumRef.current.forEach((p, i) => {
+        // Simple harmonic motion with different frequencies
+        const frequency = 0.5 + i * 0.03;
+        p.angle = Math.sin(t * frequency + p.phase) * 0.8;
 
-          // Draw string
-          ctx.beginPath();
-          ctx.moveTo(cx, startY);
-          ctx.lineTo(bobX, bobY);
-          ctx.strokeStyle = `hsla(${hue}, 60%, 40%, 0.5)`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
+        const bobX = cx + Math.sin(p.angle) * p.length;
+        const bobY = startY + Math.cos(p.angle) * p.length;
 
-          // Draw bob
-          ctx.beginPath();
-          ctx.arc(bobX, bobY, 12, 0, Math.PI * 2);
-          ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
-          ctx.fill();
+        const hue = (i * 24 + t * 20) % 360;
 
-          // Glow effect
-          ctx.beginPath();
-          ctx.arc(bobX, bobY, 16, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.3)`;
-          ctx.fill();
-        });
-
-        // Draw pivot point
+        // Draw string
         ctx.beginPath();
-        ctx.arc(cx, startY, 8, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
+        ctx.moveTo(cx, startY);
+        ctx.lineTo(bobX, bobY);
+        ctx.strokeStyle = `hsla(${hue}, 60%, 40%, 0.5)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Draw bob
+        ctx.beginPath();
+        ctx.arc(bobX, bobY, 12, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
         ctx.fill();
-      },
-    });
+
+        // Glow effect
+        ctx.beginPath();
+        ctx.arc(bobX, bobY, 16, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.3)`;
+        ctx.fill();
+      });
+
+      // Draw pivot point
+      ctx.beginPath();
+      ctx.arc(cx, startY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
 
     return () => {
-      compositor.unregister(SOURCE_ID);
+      cancelAnimationFrame(rafRef.current);
     };
-  }, [compositor]);
+  }, [ref]);
+
+  return <canvas ref={ref} style={{ display: "none" }} />;
 }

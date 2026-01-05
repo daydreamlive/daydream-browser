@@ -26,7 +26,7 @@ export async function createStream(
       controlnets: [
         {
           modelId: "xinsir/controlnet-canny-sdxl-1.0",
-          conditioningScale: 0.6,
+          conditioningScale: 0.7,
           enabled: true,
           preprocessor: "canny",
         },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useCompositor, type Ctx2D } from "@daydreamlive/react";
+import { useSource } from "@daydreamlive/react";
 
 interface FlowParticle {
   x: number;
@@ -20,60 +20,72 @@ function noise2D(x: number, y: number, t: number): number {
 }
 
 export function useFlowFieldSource() {
-  const compositor = useCompositor();
+  const { ref } = useSource<HTMLCanvasElement>(SOURCE_ID, { kind: "canvas" });
   const particlesRef = useRef<FlowParticle[]>([]);
   const initializedRef = useRef(false);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    compositor.register(SOURCE_ID, {
-      kind: "custom",
-      onFrame: (ctx: Ctx2D, timestamp: number) => {
-        const w = ctx.canvas.width;
-        const h = ctx.canvas.height;
-        const t = timestamp * 0.0005;
+    const canvas = ref.current;
+    if (!canvas) return;
 
-        // Initialize particles on first frame
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          particlesRef.current = Array.from({ length: 2000 }, () => ({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            hue: Math.random() * 360,
-          }));
-        }
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-        // Fade background (slower fade for trail effect)
-        ctx.fillStyle = "rgba(8, 8, 15, 0.02)";
-        ctx.fillRect(0, 0, w, h);
+    const animate = (timestamp: number) => {
+      const w = canvas.width;
+      const h = canvas.height;
+      const t = timestamp * 0.0005;
 
-        particlesRef.current.forEach((p) => {
-          // Get flow direction from noise
-          const angle = noise2D(p.x, p.y, t) * Math.PI * 4;
-          const speed = 3;
+      // Initialize particles on first frame
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        particlesRef.current = Array.from({ length: 2000 }, () => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          hue: Math.random() * 360,
+        }));
+      }
 
-          // Move particle
-          p.x += Math.cos(angle) * speed;
-          p.y += Math.sin(angle) * speed;
+      // Fade background (slower fade for trail effect)
+      ctx.fillStyle = "rgba(8, 8, 15, 0.02)";
+      ctx.fillRect(0, 0, w, h);
 
-          // Wrap around
-          if (p.x < 0) p.x = w;
-          if (p.x > w) p.x = 0;
-          if (p.y < 0) p.y = h;
-          if (p.y > h) p.y = 0;
+      particlesRef.current.forEach((p) => {
+        // Get flow direction from noise
+        const angle = noise2D(p.x, p.y, t) * Math.PI * 4;
+        const speed = 3;
 
-          // Update hue based on position
-          p.hue = (p.x / w) * 180 + (p.y / h) * 180 + t * 100;
+        // Move particle
+        p.x += Math.cos(angle) * speed;
+        p.y += Math.sin(angle) * speed;
 
-          // Draw particle (larger and brighter)
-          ctx.fillStyle = `hsl(${p.hue % 360}, 80%, 60%)`;
-          ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
-        });
-      },
-    });
+        // Wrap around
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+
+        // Update hue based on position
+        p.hue = (p.x / w) * 180 + (p.y / h) * 180 + t * 100;
+
+        // Draw particle (larger and brighter)
+        ctx.fillStyle = `hsl(${p.hue % 360}, 80%, 60%)`;
+        ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+      });
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
 
     return () => {
-      compositor.unregister(SOURCE_ID);
+      cancelAnimationFrame(rafRef.current);
       particlesRef.current = [];
     };
-  }, [compositor]);
+  }, [ref]);
+
+  return <canvas ref={ref} style={{ display: "none" }} />;
 }

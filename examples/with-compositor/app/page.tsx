@@ -90,23 +90,42 @@ function SourceButton({
 }
 
 function SourceRegistrar() {
-  useBallsSource();
-  useGeometrySource();
-  useParticlesSource();
-  useMetaballsSource();
-  useFractalTreeSource();
-  useFlowFieldSource();
-  useKaleidoscopeSource();
-  useGameOfLifeSource();
-  useLissajousSource();
-  useSpirographSource();
-  useVoronoiSource();
-  useMatrixSource();
-  usePlasmaSource();
-  usePendulumSource();
-  useStarfieldSource();
-  useRipplesSource();
-  return null;
+  const balls = useBallsSource();
+  const geometry = useGeometrySource();
+  const particles = useParticlesSource();
+  const metaballs = useMetaballsSource();
+  const fractalTree = useFractalTreeSource();
+  const flowField = useFlowFieldSource();
+  const kaleidoscope = useKaleidoscopeSource();
+  const gameOfLife = useGameOfLifeSource();
+  const lissajous = useLissajousSource();
+  const spirograph = useSpirographSource();
+  const voronoi = useVoronoiSource();
+  const matrix = useMatrixSource();
+  const plasma = usePlasmaSource();
+  const pendulum = usePendulumSource();
+  const starfield = useStarfieldSource();
+  const ripples = useRipplesSource();
+  return (
+    <>
+      {balls}
+      {geometry}
+      {particles}
+      {metaballs}
+      {fractalTree}
+      {flowField}
+      {kaleidoscope}
+      {gameOfLife}
+      {lissajous}
+      {spirograph}
+      {voronoi}
+      {matrix}
+      {plasma}
+      {pendulum}
+      {starfield}
+      {ripples}
+    </>
+  );
 }
 
 function InputPanel({
@@ -351,7 +370,7 @@ function CompositorDemo() {
               @daydreamlive/react - Compositor
             </h1>
             <p className="text-xs text-zinc-400">
-              Canvas source switcher with crossfade transitions + AI streaming
+              Canvas source switcher + AI streaming
             </p>
           </header>
 
@@ -439,7 +458,6 @@ export default function Home() {
       width={512}
       height={512}
       fps={30}
-      crossfadeMs={500}
       disableSilentAudio={false}
     >
       <CompositorDemo />
