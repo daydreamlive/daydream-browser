@@ -217,6 +217,7 @@ describe("WHIPClient", () => {
         createMockResponse({ ok: true, body: "mock-answer-sdp" }),
       );
       mockPcFactory.mockPc.connectionState = "connected";
+      mockPcFactory.mockPc.iceConnectionState = "connected";
 
       const client = new WHIPClient({
         url: "https://server/whip",
