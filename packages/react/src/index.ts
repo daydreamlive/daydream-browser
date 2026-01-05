@@ -54,6 +54,7 @@ export type {
   FitMode,
   ContentHint,
   Ctx2D,
+  TransitionOptions,
 } from "@daydreamlive/browser";
 
 export {

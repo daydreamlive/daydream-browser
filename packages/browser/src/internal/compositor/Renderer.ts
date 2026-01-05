@@ -8,12 +8,17 @@ export interface RendererOptions {
   keepalive: boolean;
 }
 
+export interface SetActiveSourceOptions {
+  /** Override crossfade duration for this transition only */
+  durationMs?: number;
+}
+
 export interface Renderer {
   readonly captureCanvas: HTMLCanvasElement;
   readonly offscreenCtx: Ctx2D;
   readonly size: Size;
 
-  setActiveSource(source: Source | null): (() => void) | void;
+  setActiveSource(source: Source | null, options?: SetActiveSourceOptions): (() => void) | void;
   renderFrame(timestamp: number): void;
   resize(width: number, height: number, dpr: number): void;
   setCrossfadeMs(ms: number): void;
@@ -57,6 +62,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   let pendingSource: Source | null = null;
   let crossfadeStart: number | null = null;
   let cleanupFn: (() => void) | void = undefined;
+  let transitionDurationMs: number | null = null; // per-transition override
 
   // Snapshot canvas for crossfade (captures previous frame when source changes)
   let snapshotCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
@@ -307,7 +313,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
     isSourceReady,
 
-    setActiveSource(source: Source | null): (() => void) | void {
+    setActiveSource(source: Source | null, options?: SetActiveSourceOptions): (() => void) | void {
       // Cleanup previous custom source
       if (cleanupFn) {
         cleanupFn();
@@ -319,8 +325,12 @@ export function createRenderer(options: RendererOptions): Renderer {
         pendingSource = null;
         crossfadeStart = null;
         useSnapshot = false;
+        transitionDurationMs = null;
         return;
       }
+
+      // Set per-transition duration override
+      transitionDurationMs = options?.durationMs ?? null;
 
       // Capture current frame to snapshot for crossfade
       // This allows crossfade even if the previous source element is unmounted
@@ -372,7 +382,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       // Handle crossfade
       const fading = pendingSource && crossfadeStart !== null && (currentSource || useSnapshot);
       if (fading) {
-        const t = Math.min(1, (timestamp - crossfadeStart!) / crossfadeMs);
+        const effectiveDuration = transitionDurationMs ?? crossfadeMs;
+        const t = Math.min(1, (timestamp - crossfadeStart!) / effectiveDuration);
 
         // Draw outgoing frame (from snapshot or currentSource)
         if (useSnapshot && snapshotCanvas) {
@@ -396,6 +407,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           pendingSource = null;
           crossfadeStart = null;
           useSnapshot = false;
+          transitionDurationMs = null; // Reset per-transition override
         }
       } else if (pendingSource && !currentSource && !useSnapshot) {
         if (isSourceReady(pendingSource)) {

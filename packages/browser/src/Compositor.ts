@@ -10,6 +10,7 @@ import type {
   CompositorOptions,
   Size,
   Source,
+  TransitionOptions,
 } from "./types";
 import type { SourceRegistry } from "./internal/compositor/Registry";
 
@@ -170,7 +171,7 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
   // Active Source Management
   // ============================================================================
 
-  activate(id: string): void {
+  activate(id: string, options?: TransitionOptions): void {
     if (this.destroyed) return;
 
     const source = this.registry.get(id);
@@ -179,7 +180,9 @@ export class Compositor extends CompositorEventEmitter implements ICompositor {
     }
 
     this._activeId = id;
-    this.renderer.setActiveSource(source);
+    this.renderer.setActiveSource(source, {
+      durationMs: options?.durationMs,
+    });
 
     // Start scheduler with video element if applicable
     const videoEl = source.kind === "video" ? source.element : undefined;

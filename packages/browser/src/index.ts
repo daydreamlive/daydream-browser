@@ -69,4 +69,5 @@ export type {
   FitMode,
   ContentHint,
   Ctx2D,
+  TransitionOptions,
 } from "./types";

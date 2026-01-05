@@ -132,6 +132,11 @@ export type Size = {
   dpr: number;
 };
 
+export interface TransitionOptions {
+  /** Duration of the crossfade in milliseconds. Overrides the default crossfadeMs. */
+  durationMs?: number;
+}
+
 export interface CompositorOptions {
   width?: number;
   height?: number;
@@ -163,7 +168,7 @@ export interface Compositor {
   list(): Array<{ id: string; source: Source }>;
 
   // Active source management
-  activate(id: string): void;
+  activate(id: string, options?: TransitionOptions): void;
   deactivate(): void;
   readonly activeId: string | null;
 
