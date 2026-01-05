@@ -58,6 +58,11 @@ export function createRenderer(options: RendererOptions): Renderer {
   let crossfadeStart: number | null = null;
   let cleanupFn: (() => void) | void = undefined;
 
+  // Snapshot canvas for crossfade (captures previous frame when source changes)
+  let snapshotCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+  let snapshotCtx: Ctx2D | null = null;
+  let useSnapshot = false; // true when crossfading from snapshot instead of currentSource
+
   // Rendering state
   let frameIndex = 0;
   let rectCache = new WeakMap<
@@ -126,6 +131,27 @@ export function createRenderer(options: RendererOptions): Renderer {
         cfCtx.imageSmoothingEnabled = true;
         crossfadeCanvas = cfCanvas;
         crossfadeCtx = cfCtx;
+      }
+    }
+
+    // Create snapshot canvas for crossfade when source element is unmounted
+    try {
+      const snapCanvas = new OffscreenCanvas(pxW, pxH);
+      snapshotCanvas = snapCanvas;
+      const snapCtx = snapCanvas.getContext("2d", { alpha: false }) as Ctx2D | null;
+      if (snapCtx) {
+        snapCtx.imageSmoothingEnabled = true;
+        snapshotCtx = snapCtx;
+      }
+    } catch {
+      const snapCanvas = document.createElement("canvas");
+      snapCanvas.width = pxW;
+      snapCanvas.height = pxH;
+      const snapCtx = snapCanvas.getContext("2d", { alpha: false }) as Ctx2D | null;
+      if (snapCtx) {
+        snapCtx.imageSmoothingEnabled = true;
+        snapshotCanvas = snapCanvas;
+        snapshotCtx = snapCtx;
       }
     }
 
@@ -292,7 +318,21 @@ export function createRenderer(options: RendererOptions): Renderer {
         currentSource = null;
         pendingSource = null;
         crossfadeStart = null;
+        useSnapshot = false;
         return;
+      }
+
+      // Capture current frame to snapshot for crossfade
+      // This allows crossfade even if the previous source element is unmounted
+      if (currentSource && offscreenCtx && snapshotCtx && snapshotCanvas) {
+        snapshotCtx.drawImage(
+          offscreenCtx.canvas,
+          0,
+          0,
+        );
+        useSnapshot = true;
+      } else {
+        useSnapshot = false;
       }
 
       pendingSource = source;
@@ -330,18 +370,34 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
 
       // Handle crossfade
-      const fading = pendingSource && crossfadeStart !== null && currentSource;
+      const fading = pendingSource && crossfadeStart !== null && (currentSource || useSnapshot);
       if (fading) {
         const t = Math.min(1, (timestamp - crossfadeStart!) / crossfadeMs);
-        blitSource(currentSource!, 1 - t, timestamp);
+
+        // Draw outgoing frame (from snapshot or currentSource)
+        if (useSnapshot && snapshotCanvas) {
+          // Use captured snapshot for crossfade (handles unmounted elements)
+          const prev = off.globalAlpha;
+          try {
+            off.globalAlpha = Math.max(0, Math.min(1, 1 - t));
+            off.drawImage(snapshotCanvas as CanvasImageSource, 0, 0);
+          } finally {
+            off.globalAlpha = prev;
+          }
+        } else if (currentSource) {
+          blitSource(currentSource, 1 - t, timestamp);
+        }
+
+        // Draw incoming frame
         blitSource(pendingSource!, t, timestamp);
 
         if (t >= 1) {
           currentSource = pendingSource;
           pendingSource = null;
           crossfadeStart = null;
+          useSnapshot = false;
         }
-      } else if (pendingSource && !currentSource) {
+      } else if (pendingSource && !currentSource && !useSnapshot) {
         if (isSourceReady(pendingSource)) {
           blitSource(pendingSource, 1, timestamp);
           currentSource = pendingSource;
@@ -422,6 +478,14 @@ export function createRenderer(options: RendererOptions): Renderer {
         crossfadeCanvas.height = pxH;
       }
 
+      if (snapshotCanvas instanceof HTMLCanvasElement) {
+        snapshotCanvas.width = pxW;
+        snapshotCanvas.height = pxH;
+      } else if (snapshotCanvas instanceof OffscreenCanvas) {
+        snapshotCanvas.width = pxW;
+        snapshotCanvas.height = pxH;
+      }
+
       rectCache = new WeakMap();
     },
 
@@ -440,12 +504,15 @@ export function createRenderer(options: RendererOptions): Renderer {
       }
       currentSource = null;
       pendingSource = null;
+      useSnapshot = false;
       captureCanvas = null;
       captureCtx = null;
       offscreen = null;
       offscreenCtx = null;
       crossfadeCanvas = null;
       crossfadeCtx = null;
+      snapshotCanvas = null;
+      snapshotCtx = null;
     },
   };
 }
