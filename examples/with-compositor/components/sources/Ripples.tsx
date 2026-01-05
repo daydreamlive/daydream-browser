@@ -17,6 +17,7 @@ export function useRipplesSource() {
   const ripplesRef = useRef<Ripple[]>([]);
   const lastSpawnRef = useRef(0);
   const rafRef = useRef<number>(0);
+  const imageDataRef = useRef<ImageData | null>(null);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -26,6 +27,9 @@ export function useRipplesSource() {
     canvas.height = 512;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Pre-allocate ImageData once
+    imageDataRef.current = ctx.createImageData(canvas.width, canvas.height);
 
     const animate = (timestamp: number) => {
       const w = canvas.width;
@@ -46,8 +50,8 @@ export function useRipplesSource() {
       // Remove old ripples
       ripplesRef.current = ripplesRef.current.filter((r) => t - r.time < 4);
 
-      // Calculate interference pattern
-      const imageData = ctx.createImageData(w, h);
+      // Reuse pre-allocated ImageData
+      const imageData = imageDataRef.current!;
       const data = imageData.data;
       const step = 3;
 
