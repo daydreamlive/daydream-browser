@@ -1,5 +1,11 @@
 # @daydreamlive/browser
 
+## 0.3.1
+
+### Patch Changes
+
+- e47d613: update usePlayer signature
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @daydreamlive/react
 
+## 0.3.1
+
+### Patch Changes
+
+- e47d613: update usePlayer signature
+- Updated dependencies [e47d613]
+  - @daydreamlive/browser@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
