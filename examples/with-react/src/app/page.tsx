@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  useTransition,
-} from "react";
+import { useState, useRef, useCallback, useEffect, useTransition } from "react";
 import { useBroadcast, usePlayer } from "@daydreamlive/react";
 import { createStream, updateStream, type StreamInfo } from "./actions";
 
@@ -145,15 +139,18 @@ export default function Home() {
 
   const inputVideoRef = useRef<HTMLVideoElement>(null);
 
-  const { status: broadcastStatus, start, stop } = useBroadcast({
+  const {
+    status: broadcastStatus,
+    start,
+    stop,
+  } = useBroadcast({
     whipUrl: streamInfo?.whipUrl ?? "",
     reconnect: { enabled: true, maxAttempts: 5, baseDelayMs: 1000 },
   });
 
   const broadcastState = broadcastStatus.state;
   const whepUrl =
-    broadcastStatus.state === "live" ||
-    broadcastStatus.state === "reconnecting"
+    broadcastStatus.state === "live" || broadcastStatus.state === "reconnecting"
       ? broadcastStatus.whepUrl
       : null;
   const broadcastError =
@@ -164,7 +161,8 @@ export default function Home() {
     videoRef: playerVideoRef,
     play,
     stop: stopPlayer,
-  } = usePlayer(whepUrl, {
+  } = usePlayer({
+    whepUrl,
     autoPlay: true,
     reconnect: { enabled: true, maxAttempts: 10, baseDelayMs: 300 },
   });
@@ -333,8 +331,8 @@ export default function Home() {
               {!isReady
                 ? "Preparing..."
                 : isConnecting
-                  ? "Connecting..."
-                  : "Start"}
+                ? "Connecting..."
+                : "Start"}
             </button>
           )}
 

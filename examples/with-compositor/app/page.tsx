@@ -248,8 +248,7 @@ function CompositorDemo() {
 
   const broadcastState = broadcastStatus.state;
   const whepUrl =
-    broadcastStatus.state === "live" ||
-    broadcastStatus.state === "reconnecting"
+    broadcastStatus.state === "live" || broadcastStatus.state === "reconnecting"
       ? broadcastStatus.whepUrl
       : null;
   const broadcastError =
@@ -260,7 +259,8 @@ function CompositorDemo() {
     videoRef: playerVideoRef,
     play,
     stop: stopPlayer,
-  } = usePlayer(whepUrl, {
+  } = usePlayer({
+    whepUrl,
     autoPlay: true,
     reconnect: { enabled: true, maxAttempts: 10, baseDelayMs: 300 },
   });
@@ -434,8 +434,8 @@ function CompositorDemo() {
                 {!isReady
                   ? "Preparing..."
                   : isConnecting
-                    ? "Connecting..."
-                    : "Start"}
+                  ? "Connecting..."
+                  : "Start"}
               </button>
             )}
 

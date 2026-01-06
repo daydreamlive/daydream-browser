@@ -15,6 +15,7 @@ import type {
 } from "@daydreamlive/browser";
 
 export interface UsePlayerOptions {
+  whepUrl: string | null;
   reconnect?: ReconnectConfig;
   iceServers?: RTCIceServer[];
   connectionTimeout?: number;
@@ -45,15 +46,13 @@ export interface UsePlayerReturn {
 }
 
 export function usePlayer(
-  whepUrl: string | null,
-  options: UsePlayerOptions | undefined,
+  options: UsePlayerOptions,
   factory: PlayerFactory,
 ): UsePlayerReturn {
   const [status, setStatus] = useState<UsePlayerStatus>({ state: "idle" });
   const playerRef = useRef<Player | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const optionsRef = useRef(options);
-  const whepUrlRef = useRef(whepUrl);
   const factoryRef = useRef(factory);
 
   useEffect(() => {
@@ -65,37 +64,36 @@ export function usePlayer(
   }, [factory]);
 
   useEffect(() => {
-    whepUrlRef.current = whepUrl;
-  }, [whepUrl]);
-
-  useEffect(() => {
     return () => {
       playerRef.current?.stop();
     };
   }, []);
 
-  const updateStatus = useCallback((newState: PlayerState, error?: DaydreamError) => {
-    switch (newState) {
-      case "connecting":
-        setStatus({ state: "connecting" });
-        break;
-      case "playing":
-        setStatus({ state: "playing" });
-        break;
-      case "buffering":
-        // reconnectInfo will be set by the reconnect event
-        break;
-      case "ended":
-        setStatus({ state: "ended" });
-        break;
-      case "error":
-        setStatus({ state: "error", error: error! });
-        break;
-    }
-  }, []);
+  const updateStatus = useCallback(
+    (newState: PlayerState, error?: DaydreamError) => {
+      switch (newState) {
+        case "connecting":
+          setStatus({ state: "connecting" });
+          break;
+        case "playing":
+          setStatus({ state: "playing" });
+          break;
+        case "buffering":
+          // reconnectInfo will be set by the reconnect event
+          break;
+        case "ended":
+          setStatus({ state: "ended" });
+          break;
+        case "error":
+          setStatus({ state: "error", error: error! });
+          break;
+      }
+    },
+    [],
+  );
 
   const play = useCallback(async () => {
-    const currentWhepUrl = whepUrlRef.current;
+    const currentWhepUrl = optionsRef.current.whepUrl;
     if (!currentWhepUrl) {
       return;
     }

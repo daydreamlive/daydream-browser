@@ -16,11 +16,8 @@ export function useBroadcast(options: UseBroadcastOptions): UseBroadcastReturn {
   return baseUseBroadcast(options, createBroadcast);
 }
 
-export function usePlayer(
-  whepUrl: string | null,
-  options?: UsePlayerOptions,
-): UsePlayerReturn {
-  return baseUsePlayer(whepUrl, options, createPlayer);
+export function usePlayer(options: UsePlayerOptions): UsePlayerReturn {
+  return baseUsePlayer(options, createPlayer);
 }
 
 export type {
