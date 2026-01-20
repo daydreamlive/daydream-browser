@@ -1,5 +1,11 @@
 # @daydreamlive/browser
 
+## 0.3.2
+
+### Patch Changes
+
+- 3ba4a37: better structure + more tests
+
 ## 0.3.1
 
 ### Patch Changes
