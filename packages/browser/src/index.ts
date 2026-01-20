@@ -1,7 +1,7 @@
-import type { BroadcastOptions, WHIPResponseResult } from "./types";
+import type { BroadcastOptions, WHIPResponseResult } from "./types/broadcast";
+import type { PlayerOptions } from "./types/player";
 import { Broadcast, createBroadcast as baseCreateBroadcast } from "./Broadcast";
 import { Player, createPlayer as baseCreatePlayer } from "./Player";
-import type { PlayerOptions } from "./types";
 
 export const livepeerResponseHandler = (
   response: Response,
@@ -32,40 +32,37 @@ export {
 
 export type {
   AudioConfig,
-  BroadcastOptions,
-  PlayerOptions,
-  BroadcastState,
-  PlayerState,
+  DaydreamError,
+  DaydreamErrorCode,
   ReconnectConfig,
   ReconnectInfo,
   VideoConfig,
   BroadcastEventMap,
-  PlayerEventMap,
-  DaydreamError,
-  DaydreamErrorCode,
+  BroadcastOptions,
+  BroadcastState,
   WHIPResponseResult,
+  PlayerEventMap,
+  PlayerOptions,
+  PlayerState,
+  CanvasSource,
+  Compositor,
+  CompositorEvent,
+  CompositorEventMap,
+  CompositorOptions,
+  ContentHint,
+  Ctx2D,
+  FitMode,
+  Size,
+  Source,
+  VideoSource,
 } from "./types";
 
 export {
+  DEFAULT_AUDIO_BITRATE,
   DEFAULT_ICE_SERVERS,
   DEFAULT_VIDEO_BITRATE,
-  DEFAULT_AUDIO_BITRATE,
 } from "./types";
 
 export { Broadcast, type BroadcastConfig } from "./Broadcast";
 export { Player, type PlayerConfig } from "./Player";
 export { createCompositor } from "./Compositor";
-
-export type {
-  Compositor,
-  CompositorOptions,
-  CompositorEvent,
-  CompositorEventMap,
-  Source,
-  VideoSource,
-  CanvasSource,
-  Size,
-  FitMode,
-  ContentHint,
-  Ctx2D,
-} from "./types";

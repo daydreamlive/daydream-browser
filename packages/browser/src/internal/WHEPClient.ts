@@ -1,4 +1,4 @@
-import { DEFAULT_ICE_SERVERS } from "../types";
+import { DEFAULT_ICE_SERVERS } from "../types/common";
 import { ConnectionError, NetworkError } from "../errors";
 import {
   type PeerConnectionFactory,

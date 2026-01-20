@@ -1,11 +1,13 @@
 import type {
-  BroadcastState,
-  BroadcastEventMap,
-  BroadcastOptions,
+  DaydreamError,
   ReconnectConfig,
   ReconnectInfo,
-  DaydreamError,
-} from "./types";
+} from "./types/common";
+import type {
+  BroadcastEventMap,
+  BroadcastOptions,
+  BroadcastState,
+} from "./types/broadcast";
 import { WHIPClient, type WHIPClientConfig } from "./internal/WHIPClient";
 import { ConnectionError } from "./errors";
 import { TypedEventEmitter } from "./internal/TypedEventEmitter";

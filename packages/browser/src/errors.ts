@@ -1,4 +1,4 @@
-import type { DaydreamError, DaydreamErrorCode } from "./types";
+import type { DaydreamError, DaydreamErrorCode } from "./types/common";
 
 export class BaseDaydreamError extends Error implements DaydreamError {
   readonly code: DaydreamErrorCode;

@@ -1,9 +1,9 @@
 import {
+  DEFAULT_AUDIO_BITRATE,
   DEFAULT_ICE_SERVERS,
   DEFAULT_VIDEO_BITRATE,
-  DEFAULT_AUDIO_BITRATE,
-  type WHIPResponseResult,
-} from "../types";
+} from "../types/common";
+import type { WHIPResponseResult } from "../types/broadcast";
 import { ConnectionError, NetworkError } from "../errors";
 import {
   type PeerConnectionFactory,

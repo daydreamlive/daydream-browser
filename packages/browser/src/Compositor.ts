@@ -10,7 +10,7 @@ import type {
   CompositorOptions,
   Size,
   Source,
-} from "./types";
+} from "./types/compositor";
 import type { SourceRegistry } from "./internal/compositor/Registry";
 
 class CompositorEventEmitter {

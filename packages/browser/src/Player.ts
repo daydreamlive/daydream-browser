@@ -1,11 +1,13 @@
 import type {
-  PlayerState,
-  PlayerEventMap,
-  PlayerOptions,
+  DaydreamError,
   ReconnectConfig,
   ReconnectInfo,
-  DaydreamError,
-} from "./types";
+} from "./types/common";
+import type {
+  PlayerEventMap,
+  PlayerOptions,
+  PlayerState,
+} from "./types/player";
 import { WHEPClient, type WHEPClientConfig } from "./internal/WHEPClient";
 import { ConnectionError } from "./errors";
 import { TypedEventEmitter } from "./internal/TypedEventEmitter";
