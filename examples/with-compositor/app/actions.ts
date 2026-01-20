@@ -25,13 +25,19 @@ export async function createStream(
       negativePrompt: params.negativePrompt,
       controlnets: [
         {
+          modelId: "xinsir/controlnet-depth-sdxl-1.0",
+          conditioningScale: 0.12,
+          enabled: true,
+          preprocessor: "depth",
+        },
+        {
           modelId: "xinsir/controlnet-canny-sdxl-1.0",
-          conditioningScale: 0.7,
+          conditioningScale: 0.6,
           enabled: true,
           preprocessor: "canny",
         },
       ],
-      tIndexList: [2, 11],
+      tIndexList: [2],
     },
   });
 
