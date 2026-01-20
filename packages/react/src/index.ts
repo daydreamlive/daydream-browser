@@ -29,6 +29,22 @@ export type {
   UsePlayerStatus,
 };
 
+export {
+  BaseDaydreamError,
+  NetworkError,
+  ConnectionError,
+  StreamNotFoundError,
+  UnauthorizedError,
+} from "@daydreamlive/browser";
+
+export {
+  DEFAULT_ICE_SERVERS,
+  DEFAULT_VIDEO_BITRATE,
+  DEFAULT_AUDIO_BITRATE,
+} from "@daydreamlive/browser";
+
+export { createCompositor } from "@daydreamlive/browser";
+
 export type {
   AudioConfig,
   BroadcastState,
@@ -38,6 +54,10 @@ export type {
   VideoConfig,
   DaydreamError,
   DaydreamErrorCode,
+  BroadcastEventMap,
+  PlayerEventMap,
+  BroadcastOptions,
+  PlayerOptions,
   // Compositor types
   Compositor,
   CompositorOptions,
