@@ -1,12 +1,12 @@
 export class TypedEventEmitter<EventMap extends { [K in keyof EventMap]: (...args: any[]) => void }> {
   private listeners = new Map<keyof EventMap, Set<(...args: any[]) => void>>();
 
-  on<E extends keyof EventMap>(event: E, handler: EventMap[E]): this {
+  on<E extends keyof EventMap>(event: E, handler: EventMap[E]): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(handler);
-    return this;
+    return () => this.off(event, handler);
   }
 
   off<E extends keyof EventMap>(event: E, handler: EventMap[E]): this {

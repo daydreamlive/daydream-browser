@@ -3,9 +3,9 @@ import { createRenderer, type Renderer } from "./internal/compositor/Renderer";
 import { createScheduler, type Scheduler } from "./internal/compositor/Scheduler";
 import { createAudioManager, type AudioManager } from "./internal/compositor/AudioManager";
 import { createVisibilityHandler, type VisibilityHandler } from "./internal/compositor/VisibilityHandler";
+import { TypedEventEmitter } from "./internal/TypedEventEmitter";
 import type {
   Compositor as ICompositor,
-  CompositorEvent,
   CompositorEventMap,
   CompositorOptions,
   Size,
@@ -13,36 +13,7 @@ import type {
 } from "./types/compositor";
 import type { SourceRegistry } from "./internal/compositor/Registry";
 
-class CompositorEventEmitter {
-  private listeners = new Map<CompositorEvent, Set<CompositorEventMap[CompositorEvent]>>();
-
-  on<E extends CompositorEvent>(event: E, handler: CompositorEventMap[E]): () => void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(handler as CompositorEventMap[CompositorEvent]);
-    return () => this.off(event, handler);
-  }
-
-  off<E extends CompositorEvent>(event: E, handler: CompositorEventMap[E]): void {
-    this.listeners.get(event)?.delete(handler as CompositorEventMap[CompositorEvent]);
-  }
-
-  protected emit<E extends CompositorEvent>(
-    event: E,
-    ...args: Parameters<CompositorEventMap[E]>
-  ): void {
-    this.listeners.get(event)?.forEach((handler) => {
-      (handler as (...args: Parameters<CompositorEventMap[E]>) => void)(...args);
-    });
-  }
-
-  protected clearListeners(): void {
-    this.listeners.clear();
-  }
-}
-
-export class Compositor extends CompositorEventEmitter implements ICompositor {
+export class Compositor extends TypedEventEmitter<CompositorEventMap> implements ICompositor {
   private readonly registry: SourceRegistry;
   private readonly renderer: Renderer;
   private readonly scheduler: Scheduler;
