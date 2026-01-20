@@ -1,4 +1,8 @@
-# Next.js Example
+# React Example
+
+Basic webcam streaming with real-time AI video processing.
+
+**[Live Demo](https://daydream-browser-kohl.preview.livepeer.monster)**
 
 This demo shows how to use the Daydream SDK with Next.js:
 

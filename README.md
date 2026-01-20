@@ -16,7 +16,12 @@ npm install @daydreamlive/browser
 npm install @daydreamlive/react
 ```
 
-See [examples/nextjs](./examples/nextjs) for a full working example.
+## Examples
+
+| Example | Description | Demo |
+| ------- | ----------- | ---- |
+| [with-react](./examples/with-react) | Basic React hooks usage | [Live Demo](https://daydream-browser-kohl.preview.livepeer.monster) |
+| [with-compositor](./examples/with-compositor) | Canvas composition + streaming | [Live Demo](https://daydream-browser-zeta.preview.livepeer.monster) |
 
 ## Architecture
 
