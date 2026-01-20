@@ -4,21 +4,67 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Source, FitMode, ContentHint } from "@daydreamlive/browser";
 import { useCompositor } from "./useCompositor";
 
+/**
+ * Options for the useSource hook.
+ */
 export interface UseSourceOptions {
+  /** Type of source element: "video" for HTMLVideoElement, "canvas" for HTMLCanvasElement. */
   kind: "video" | "canvas";
+  /** Content hint for encoding optimization. */
   contentHint?: ContentHint;
+  /** How to fit the source content within the output canvas. Only applies to video sources. */
   fit?: FitMode;
 }
 
+/**
+ * Return value of the useSource hook.
+ */
 export interface UseSourceReturn<
   T extends HTMLVideoElement | HTMLCanvasElement,
 > {
+  /** Ref to attach to the source element. */
   ref: React.RefObject<T>;
+  /** Whether this source is currently active. Reactive. */
   isActive: boolean;
+  /** Activate this source for rendering. */
   activate: () => void;
+  /** Deactivate this source (if it's currently active). */
   deactivate: () => void;
 }
 
+/**
+ * React hook for managing a compositor source.
+ *
+ * Automatically registers the source element with the compositor and provides
+ * methods for activation/deactivation. Cleans up on unmount.
+ *
+ * @typeParam T - The element type (HTMLVideoElement or HTMLCanvasElement)
+ * @param id - Unique identifier for this source
+ * @param options - Source configuration
+ * @returns Source state and control functions
+ *
+ * @example
+ * ```tsx
+ * function CameraSource() {
+ *   const { ref, isActive, activate } = useSource<HTMLVideoElement>("camera", {
+ *     kind: "video",
+ *     fit: "cover",
+ *   });
+ *
+ *   useEffect(() => {
+ *     navigator.mediaDevices.getUserMedia({ video: true })
+ *       .then(stream => {
+ *         if (ref.current) {
+ *           ref.current.srcObject = stream;
+ *           activate();
+ *         }
+ *       });
+ *   }, [activate]);
+ *
+ *   return <video ref={ref} autoPlay muted />;
+ * }
+ * ```
+ */
 export function useSource<
   T extends HTMLVideoElement | HTMLCanvasElement =
     | HTMLVideoElement

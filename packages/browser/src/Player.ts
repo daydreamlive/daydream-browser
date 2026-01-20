@@ -21,12 +21,38 @@ const PLAYER_TRANSITIONS: Record<PlayerState, PlayerState[]> = {
   error: ["connecting"],
 };
 
+/**
+ * Low-level configuration for the Player class.
+ * For most use cases, prefer using {@link createPlayer} with {@link PlayerOptions}.
+ */
 export interface PlayerConfig {
+  /** WHEP endpoint URL for receiving the stream. */
   whepUrl: string;
+  /** Reconnection behavior configuration. */
   reconnect?: ReconnectConfig;
+  /** Advanced WHEP client configuration. */
   whepConfig?: Partial<WHEPClientConfig>;
 }
 
+/**
+ * Manages a WebRTC playback session using WHEP protocol.
+ *
+ * Handles connection establishment, reconnection logic, and stream management.
+ * Emits events for state changes, errors, and reconnection attempts.
+ *
+ * @example
+ * ```ts
+ * const player = new Player({
+ *   whepUrl: "https://example.com/whep/stream-id",
+ * });
+ *
+ * player.on("stateChange", (state) => console.log("State:", state));
+ * await player.connect();
+ * player.attachTo(videoElement);
+ * ```
+ *
+ * @see {@link createPlayer} for a simpler factory function
+ */
 export class Player extends TypedEventEmitter<PlayerEventMap> {
   private readonly stateMachine: StateMachine<PlayerState>;
   private _stream: MediaStream | null = null;
@@ -39,6 +65,10 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Creates a new Player instance.
+   * @param config - Player configuration
+   */
   constructor(config: PlayerConfig) {
     super();
     this.whepUrl = config.whepUrl;
@@ -61,14 +91,17 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     );
   }
 
+  /** Current player state. */
   get state(): PlayerState {
     return this.stateMachine.current;
   }
 
+  /** The received MediaStream, or null if not connected. */
   get stream(): MediaStream | null {
     return this._stream;
   }
 
+  /** Information about the current reconnection attempt, or null if not buffering. */
   get reconnectInfo(): ReconnectInfo | null {
     if (this.state !== "buffering") return null;
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 200;
@@ -83,6 +116,10 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     };
   }
 
+  /**
+   * Establishes the WebRTC connection and starts receiving the stream.
+   * @throws {DaydreamError} If connection fails after all retry attempts
+   */
   async connect(): Promise<void> {
     try {
       this._stream = await this.whepClient.connect();
@@ -107,12 +144,20 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
     }
   }
 
+  /**
+   * Attaches the received stream to a video element.
+   * @param video - The HTMLVideoElement to display the stream
+   */
   attachTo(video: HTMLVideoElement): void {
     if (this._stream) {
       video.srcObject = this._stream;
     }
   }
 
+  /**
+   * Stops playback and disconnects.
+   * After calling this, the instance cannot be reused.
+   */
   async stop(): Promise<void> {
     this.stateMachine.force("ended");
     this.clearTimeouts();
@@ -243,6 +288,28 @@ export class Player extends TypedEventEmitter<PlayerEventMap> {
   }
 }
 
+/**
+ * Creates a new Player instance with the given WHEP URL and options.
+ *
+ * This is the recommended way to create a player session.
+ *
+ * @param whepUrl - WHEP endpoint URL for receiving the stream
+ * @param options - Optional player configuration
+ * @returns A new Player instance
+ *
+ * @example
+ * ```ts
+ * const player = createPlayer("https://livepeer.studio/webrtc/...");
+ *
+ * player.on("stateChange", (state) => {
+ *   if (state === "playing") {
+ *     player.attachTo(videoElement);
+ *   }
+ * });
+ *
+ * await player.connect();
+ * ```
+ */
 export function createPlayer(whepUrl: string, options?: PlayerOptions): Player {
   return new Player({
     whepUrl,

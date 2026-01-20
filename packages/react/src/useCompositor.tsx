@@ -18,12 +18,39 @@ import {
   type Source,
 } from "@daydreamlive/browser";
 
+/**
+ * API provided by the CompositorProvider context.
+ * Combines compositor functionality with React state management.
+ *
+ * @example
+ * ```tsx
+ * function VideoSource() {
+ *   const compositor = useCompositor();
+ *   const videoRef = useRef<HTMLVideoElement>(null);
+ *
+ *   useEffect(() => {
+ *     if (videoRef.current) {
+ *       compositor.register("camera", { kind: "video", element: videoRef.current });
+ *       compositor.activate("camera");
+ *     }
+ *     return () => compositor.unregister("camera");
+ *   }, [compositor]);
+ *
+ *   return <video ref={videoRef} />;
+ * }
+ * ```
+ */
 export interface CompositorApi {
   // Registry
+  /** Register a source with a unique ID. */
   register(id: string, source: Source): void;
+  /** Unregister a source by ID. */
   unregister(id: string): void;
+  /** Get a registered source by ID. */
   get(id: string): Source | undefined;
+  /** Check if a source is registered. */
   has(id: string): boolean;
+  /** List all registered sources. */
   list(): Array<{ id: string; source: Source }>;
 
   /**
@@ -50,35 +77,68 @@ export interface CompositorApi {
    * @param id - The source ID to activate
    */
   activate(id: string): void;
+  /** Deactivate the current source. */
   deactivate(): void;
+  /** ID of the currently active source, or null if none. */
   readonly activeId: string | null;
 
   // Output (reactive)
+  /** The composited output MediaStream. Reactive - updates when stream changes. */
   readonly stream: MediaStream | null;
+  /** Current output size. Reactive - updates when size changes. */
   readonly size: Size;
+  /** Resize the output canvas. */
   setSize(width: number, height: number, dpr?: number): void;
 
   // FPS (reactive)
+  /** Current rendering frame rate. Reactive. */
   readonly fps: number;
+  /** Set the rendering frame rate. */
   setFps(fps: number): void;
+  /** Current send frame rate. Reactive. */
   readonly sendFps: number;
+  /** Set the send frame rate. */
   setSendFps(fps: number): void;
 
   // Audio
+  /** Add an audio track to the output stream. */
   addAudioTrack(track: MediaStreamTrack): void;
+  /** Remove an audio track by track ID. */
   removeAudioTrack(trackId: string): void;
+  /** Manually unlock the audio context. */
   unlockAudio(): Promise<boolean>;
 
   // Events
+  /** Subscribe to compositor events. */
   on: Compositor["on"];
 }
 
 const CompositorContext = createContext<CompositorApi | null>(null);
 
+/**
+ * Props for the CompositorProvider component.
+ * Inherits all CompositorOptions except onSendFpsChange (managed internally).
+ */
 export interface CompositorProviderProps
   extends PropsWithChildren,
     Partial<Omit<CompositorOptions, "onSendFpsChange">> {}
 
+/**
+ * React context provider for the Compositor.
+ * Creates and manages a Compositor instance, providing it to child components via context.
+ *
+ * @example
+ * ```tsx
+ * function App() {
+ *   return (
+ *     <CompositorProvider width={1280} height={720} fps={30}>
+ *       <VideoSource />
+ *       <BroadcastButton />
+ *     </CompositorProvider>
+ *   );
+ * }
+ * ```
+ */
 export function CompositorProvider({
   children,
   width = 512,
@@ -208,6 +268,29 @@ export function CompositorProvider({
   );
 }
 
+/**
+ * Hook to access the Compositor API from context.
+ * Must be used within a CompositorProvider.
+ *
+ * @returns The CompositorApi for managing sources and output
+ * @throws {Error} If used outside of CompositorProvider
+ *
+ * @example
+ * ```tsx
+ * function BroadcastButton() {
+ *   const compositor = useCompositor();
+ *   const { start } = useBroadcast({ whipUrl: "..." });
+ *
+ *   const handleClick = async () => {
+ *     if (compositor.stream) {
+ *       await start(compositor.stream);
+ *     }
+ *   };
+ *
+ *   return <button onClick={handleClick}>Start Broadcast</button>;
+ * }
+ * ```
+ */
 export function useCompositor(): CompositorApi {
   const ctx = useContext(CompositorContext);
   if (!ctx) {

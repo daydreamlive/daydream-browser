@@ -7,10 +7,33 @@ import type {
   ReconnectInfo,
 } from "@daydreamlive/browser";
 
+/**
+ * Options for the useBroadcast hook.
+ * Same as BroadcastOptions but without `stream` (passed to `start()`) and `onResponse` (pre-configured).
+ */
 export type UseBroadcastOptions = Omit<BroadcastOptions, "stream" | "onResponse">;
 
+/**
+ * Factory function type for creating Broadcast instances.
+ * @internal
+ */
 export type BroadcastFactory = (options: BroadcastOptions) => Broadcast;
 
+/**
+ * Status returned by the useBroadcast hook.
+ * Discriminated union based on the `state` property.
+ *
+ * @example
+ * ```tsx
+ * const { status } = useBroadcast({ whipUrl });
+ *
+ * if (status.state === "live") {
+ *   console.log("Playback URL:", status.whepUrl);
+ * } else if (status.state === "error") {
+ *   console.error("Error:", status.error);
+ * }
+ * ```
+ */
 export type UseBroadcastStatus =
   | { state: "idle" }
   | { state: "connecting" }
@@ -19,13 +42,52 @@ export type UseBroadcastStatus =
   | { state: "ended" }
   | { state: "error"; error: DaydreamError };
 
+/**
+ * Return value of the useBroadcast hook.
+ */
 export interface UseBroadcastReturn {
+  /** Current broadcast status. */
   status: UseBroadcastStatus;
+  /** Start broadcasting with the given MediaStream. */
   start: (stream: MediaStream) => Promise<void>;
+  /** Stop broadcasting. */
   stop: () => Promise<void>;
+  /** Set the maximum frame rate for the video track. */
   setMaxFramerate: (fps?: number) => void;
 }
 
+/**
+ * React hook for managing a WebRTC broadcast session.
+ *
+ * Provides reactive state management, automatic cleanup, and a simple API
+ * for starting and stopping broadcasts.
+ *
+ * @param options - Broadcast configuration options
+ * @param factory - Factory function for creating Broadcast instances
+ * @returns Broadcast status and control functions
+ *
+ * @example
+ * ```tsx
+ * function BroadcastComponent() {
+ *   const { status, start, stop } = useBroadcast({ whipUrl: "..." });
+ *
+ *   const handleStart = async () => {
+ *     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+ *     await start(stream);
+ *   };
+ *
+ *   return (
+ *     <div>
+ *       <p>Status: {status.state}</p>
+ *       {status.state === "idle" && <button onClick={handleStart}>Start</button>}
+ *       {status.state === "live" && <button onClick={stop}>Stop</button>}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @internal Use the re-exported `useBroadcast` from the package root instead.
+ */
 export function useBroadcast(
   options: UseBroadcastOptions,
   factory: BroadcastFactory,

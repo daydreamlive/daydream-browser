@@ -13,6 +13,25 @@ import type {
 } from "./types/compositor";
 import type { SourceRegistry } from "./internal/compositor/Registry";
 
+/**
+ * Composites multiple video/canvas sources into a single output MediaStream.
+ *
+ * The Compositor manages a registry of sources, renders the active source to an internal
+ * canvas, and provides the output as a capturable MediaStream. It handles frame scheduling,
+ * visibility changes (reducing FPS when the page is hidden), and audio track management.
+ *
+ * @example
+ * ```ts
+ * const compositor = createCompositor({ width: 1280, height: 720, fps: 30 });
+ *
+ * // Register and activate a video source
+ * compositor.register("camera", { kind: "video", element: videoElement, fit: "cover" });
+ * compositor.activate("camera");
+ *
+ * // Use the output stream for broadcasting
+ * const broadcast = createBroadcast({ whipUrl, stream: compositor.stream });
+ * ```
+ */
 export class Compositor extends TypedEventEmitter<CompositorEventMap> implements ICompositor {
   private readonly registry: SourceRegistry;
   private readonly renderer: Renderer;
@@ -105,11 +124,21 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Source Registry
   // ============================================================================
 
+  /**
+   * Registers a source with a unique ID.
+   * @param id - Unique identifier for the source
+   * @param source - The source configuration (video or canvas element)
+   */
   register(id: string, source: Source): void {
     if (this.destroyed) return;
     this.registry.register(id, source);
   }
 
+  /**
+   * Unregisters a source by ID.
+   * If the source is currently active, it will be deactivated first.
+   * @param id - The source ID to unregister
+   */
   unregister(id: string): void {
     if (this.destroyed) return;
     const wasActive = this._activeId === id;
@@ -123,14 +152,28 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     }
   }
 
+  /**
+   * Gets a registered source by ID.
+   * @param id - The source ID
+   * @returns The source, or undefined if not found
+   */
   get(id: string): Source | undefined {
     return this.registry.get(id);
   }
 
+  /**
+   * Checks if a source is registered.
+   * @param id - The source ID to check
+   * @returns True if the source is registered
+   */
   has(id: string): boolean {
     return this.registry.has(id);
   }
 
+  /**
+   * Lists all registered sources.
+   * @returns Array of source entries with id and source
+   */
   list(): Array<{ id: string; source: Source }> {
     return this.registry.list();
   }
@@ -139,6 +182,12 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Active Source Management
   // ============================================================================
 
+  /**
+   * Activates a registered source for rendering.
+   * Only one source can be active at a time.
+   * @param id - The source ID to activate
+   * @throws {Error} If the source is not registered
+   */
   activate(id: string): void {
     if (this.destroyed) return;
 
@@ -157,6 +206,10 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     this.emit("activated", id, source);
   }
 
+  /**
+   * Deactivates the current source.
+   * The compositor will stop rendering until another source is activated.
+   */
   deactivate(): void {
     if (this.destroyed) return;
 
@@ -166,6 +219,7 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     this.emit("activated", null, undefined);
   }
 
+  /** ID of the currently active source, or null if none. */
   get activeId(): string | null {
     return this._activeId;
   }
@@ -174,6 +228,7 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Output Stream
   // ============================================================================
 
+  /** The composited output MediaStream. Can be used with Broadcast or other consumers. */
   get stream(): MediaStream {
     return this.outputStream!;
   }
@@ -182,6 +237,13 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Settings
   // ============================================================================
 
+  /**
+   * Resizes the output canvas.
+   * This recreates the output stream, so consumers may need to be updated.
+   * @param width - New width in logical pixels
+   * @param height - New height in logical pixels
+   * @param dpr - Optional device pixel ratio (defaults to window.devicePixelRatio, capped at 2)
+   */
   resize(width: number, height: number, dpr?: number): void {
     if (this.destroyed) return;
 
@@ -195,10 +257,16 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     this.recreateStream();
   }
 
+  /** Current output size configuration. */
   get size(): Size {
     return this.renderer.size;
   }
 
+  /**
+   * Sets the rendering frame rate.
+   * This recreates the output stream, so consumers may need to be updated.
+   * @param fps - Frame rate (minimum 1)
+   */
   setFps(fps: number): void {
     if (this.destroyed) return;
 
@@ -210,10 +278,16 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     this.recreateStream();
   }
 
+  /** Current rendering frame rate. */
   get fps(): number {
     return this._fps;
   }
 
+  /**
+   * Sets the frame rate for sending to the stream.
+   * Can be different from the rendering FPS (e.g., render at 60fps, send at 30fps).
+   * @param fps - Frame rate (minimum 1)
+   */
   setSendFps(fps: number): void {
     if (this.destroyed) return;
 
@@ -224,6 +298,7 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
     this.scheduler.setSendFps(next);
   }
 
+  /** Current send frame rate. */
   get sendFps(): number {
     return this._sendFps;
   }
@@ -232,16 +307,29 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Audio
   // ============================================================================
 
+  /**
+   * Adds an audio track to the output stream.
+   * @param track - The MediaStreamTrack to add (must be an audio track)
+   */
   addAudioTrack(track: MediaStreamTrack): void {
     if (this.destroyed) return;
     this.audioManager.addTrack(track);
   }
 
+  /**
+   * Removes an audio track from the output stream.
+   * @param trackId - The track ID to remove
+   */
   removeAudioTrack(trackId: string): void {
     if (this.destroyed) return;
     this.audioManager.removeTrack(trackId);
   }
 
+  /**
+   * Manually unlocks the audio context.
+   * Usually not needed as audio is auto-unlocked on user interaction.
+   * @returns True if the audio context was successfully unlocked
+   */
   unlockAudio(): Promise<boolean> {
     if (this.destroyed) return Promise.resolve(false);
     return this.audioManager.unlock();
@@ -251,6 +339,10 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   // Lifecycle
   // ============================================================================
 
+  /**
+   * Destroys the compositor and releases all resources.
+   * After calling this, the instance cannot be reused.
+   */
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -379,6 +471,26 @@ export class Compositor extends TypedEventEmitter<CompositorEventMap> implements
   }
 }
 
+/**
+ * Creates a new Compositor instance with the given options.
+ *
+ * @param options - Compositor configuration
+ * @returns A new Compositor instance
+ *
+ * @example
+ * ```ts
+ * const compositor = createCompositor({
+ *   width: 1280,
+ *   height: 720,
+ *   fps: 30,
+ * });
+ *
+ * compositor.register("camera", { kind: "video", element: videoEl, fit: "cover" });
+ * compositor.activate("camera");
+ *
+ * // Use compositor.stream for broadcasting
+ * ```
+ */
 export function createCompositor(options: CompositorOptions = {}): Compositor {
   return new Compositor(options);
 }

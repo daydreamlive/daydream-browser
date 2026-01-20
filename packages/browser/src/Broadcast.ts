@@ -21,13 +21,40 @@ const BROADCAST_TRANSITIONS: Record<BroadcastState, BroadcastState[]> = {
   error: ["connecting"],
 };
 
+/**
+ * Low-level configuration for the Broadcast class.
+ * For most use cases, prefer using {@link createBroadcast} with {@link BroadcastOptions}.
+ */
 export interface BroadcastConfig {
+  /** WHIP endpoint URL for publishing the stream. */
   whipUrl: string;
+  /** MediaStream to broadcast. */
   stream: MediaStream;
+  /** Reconnection behavior configuration. */
   reconnect?: ReconnectConfig;
+  /** Advanced WHIP client configuration. */
   whipConfig?: Partial<WHIPClientConfig>;
 }
 
+/**
+ * Manages a WebRTC broadcast session using WHIP protocol.
+ *
+ * Handles connection establishment, reconnection logic, and stream management.
+ * Emits events for state changes, errors, and reconnection attempts.
+ *
+ * @example
+ * ```ts
+ * const broadcast = new Broadcast({
+ *   whipUrl: "https://example.com/whip",
+ *   stream: mediaStream,
+ * });
+ *
+ * broadcast.on("stateChange", (state) => console.log("State:", state));
+ * await broadcast.connect();
+ * ```
+ *
+ * @see {@link createBroadcast} for a simpler factory function
+ */
 export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private _whepUrl: string | null = null;
   private readonly stateMachine: StateMachine<BroadcastState>;
@@ -39,6 +66,10 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private disconnectedGraceTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Creates a new Broadcast instance.
+   * @param config - Broadcast configuration
+   */
   constructor(config: BroadcastConfig) {
     super();
     this.currentStream = config.stream;
@@ -60,18 +91,22 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     );
   }
 
+  /** Current broadcast state. */
   get state(): BroadcastState {
     return this.stateMachine.current;
   }
 
+  /** WHEP playback URL for viewers, available after connecting. */
   get whepUrl(): string | null {
     return this._whepUrl;
   }
 
+  /** The MediaStream being broadcast. */
   get stream(): MediaStream {
     return this.currentStream;
   }
 
+  /** Information about the current reconnection attempt, or null if not reconnecting. */
   get reconnectInfo(): ReconnectInfo | null {
     if (this.state !== "reconnecting") return null;
     const baseDelay = this.reconnectConfig.baseDelayMs ?? 1000;
@@ -83,6 +118,10 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     };
   }
 
+  /**
+   * Establishes the WebRTC connection and starts broadcasting.
+   * @throws {DaydreamError} If connection fails
+   */
   async connect(): Promise<void> {
     try {
       const result = await this.whipClient.connect(this.currentStream);
@@ -102,6 +141,10 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     }
   }
 
+  /**
+   * Stops the broadcast and disconnects.
+   * After calling this, the instance cannot be reused.
+   */
   async stop(): Promise<void> {
     this.stateMachine.force("ended");
     this.clearTimeouts();
@@ -110,10 +153,19 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
     this.clearListeners();
   }
 
+  /**
+   * Sets the maximum frame rate for the video track.
+   * @param fps - Maximum frame rate, or undefined to remove the limit
+   */
   setMaxFramerate(fps?: number): void {
     this.whipClient.setMaxFramerate(fps);
   }
 
+  /**
+   * Replaces the current MediaStream with a new one.
+   * The tracks are replaced in-place if connected, otherwise just stored.
+   * @param newStream - The new MediaStream to use
+   */
   async replaceStream(newStream: MediaStream): Promise<void> {
     if (!this.whipClient.isConnected()) {
       this.currentStream = newStream;
@@ -242,6 +294,31 @@ export class Broadcast extends TypedEventEmitter<BroadcastEventMap> {
   }
 }
 
+/**
+ * Creates a new Broadcast instance with the given options.
+ *
+ * This is the recommended way to create a broadcast session.
+ * Automatically configures the Livepeer response handler to extract the playback URL.
+ *
+ * @param options - Broadcast options
+ * @returns A new Broadcast instance
+ *
+ * @example
+ * ```ts
+ * const broadcast = createBroadcast({
+ *   whipUrl: "https://livepeer.studio/webrtc/...",
+ *   stream: await navigator.mediaDevices.getUserMedia({ video: true, audio: true }),
+ * });
+ *
+ * broadcast.on("stateChange", (state) => {
+ *   if (state === "live") {
+ *     console.log("Playback URL:", broadcast.whepUrl);
+ *   }
+ * });
+ *
+ * await broadcast.connect();
+ * ```
+ */
 export function createBroadcast(options: BroadcastOptions): Broadcast {
   const {
     whipUrl,

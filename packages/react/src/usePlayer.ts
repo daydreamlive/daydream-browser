@@ -13,16 +13,41 @@ import type {
   ReconnectInfo,
 } from "@daydreamlive/browser";
 
+/**
+ * Options for the usePlayer hook.
+ * Extends PlayerOptions with WHEP URL and autoPlay settings.
+ */
 export type UsePlayerOptions = PlayerOptions & {
+  /** WHEP endpoint URL. Set to null to disable playback. */
   whepUrl: string | null;
+  /** Whether to automatically start playback when connected. Defaults to true. */
   autoPlay?: boolean;
 };
 
+/**
+ * Factory function type for creating Player instances.
+ * @internal
+ */
 export type PlayerFactory = (
   whepUrl: string,
   options?: PlayerOptions,
 ) => Player;
 
+/**
+ * Status returned by the usePlayer hook.
+ * Discriminated union based on the `state` property.
+ *
+ * @example
+ * ```tsx
+ * const { status } = usePlayer({ whepUrl });
+ *
+ * if (status.state === "buffering") {
+ *   console.log("Reconnecting:", status.reconnectInfo.attempt);
+ * } else if (status.state === "error") {
+ *   console.error("Error:", status.error);
+ * }
+ * ```
+ */
 export type UsePlayerStatus =
   | { state: "idle" }
   | { state: "connecting" }
@@ -31,13 +56,50 @@ export type UsePlayerStatus =
   | { state: "ended" }
   | { state: "error"; error: DaydreamError };
 
+/**
+ * Return value of the usePlayer hook.
+ */
 export interface UsePlayerReturn {
+  /** Current player status. */
   status: UsePlayerStatus;
+  /** Start playback. */
   play: () => Promise<void>;
+  /** Stop playback. */
   stop: () => Promise<void>;
+  /** Ref to attach to a video element for displaying the stream. */
   videoRef: RefObject<HTMLVideoElement | null>;
 }
 
+/**
+ * React hook for managing a WebRTC playback session.
+ *
+ * Provides reactive state management, automatic cleanup, and a video element ref
+ * for displaying the received stream.
+ *
+ * @param options - Player configuration options including WHEP URL
+ * @param factory - Factory function for creating Player instances
+ * @returns Player status, control functions, and video element ref
+ *
+ * @example
+ * ```tsx
+ * function PlayerComponent({ whepUrl }) {
+ *   const { status, play, stop, videoRef } = usePlayer({ whepUrl });
+ *
+ *   useEffect(() => {
+ *     if (whepUrl) play();
+ *   }, [whepUrl, play]);
+ *
+ *   return (
+ *     <div>
+ *       <video ref={videoRef} autoPlay muted />
+ *       <p>Status: {status.state}</p>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @internal Use the re-exported `usePlayer` from the package root instead.
+ */
 export function usePlayer(
   options: UsePlayerOptions,
   factory: PlayerFactory,
