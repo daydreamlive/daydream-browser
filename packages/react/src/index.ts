@@ -43,21 +43,30 @@ export {
   DEFAULT_AUDIO_BITRATE,
 } from "@daydreamlive/browser";
 
-export { createCompositor } from "@daydreamlive/browser";
+export {
+  createCompositor,
+  livepeerResponseHandler,
+  Broadcast,
+  Player,
+} from "@daydreamlive/browser";
 
 export type {
   AudioConfig,
   BroadcastState,
+  BroadcastOptions,
+  BroadcastConfig,
+  BroadcastEventMap,
+  LivepeerBroadcastOptions,
+  VideoConfig,
+  WHIPResponseResult,
   PlayerState,
+  PlayerOptions,
+  PlayerConfig,
+  PlayerEventMap,
   ReconnectConfig,
   ReconnectInfo,
-  VideoConfig,
   DaydreamError,
   DaydreamErrorCode,
-  BroadcastEventMap,
-  PlayerEventMap,
-  BroadcastOptions,
-  PlayerOptions,
   // Compositor types
   Compositor,
   CompositorOptions,
