@@ -1,25 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
-  AudioConfig,
   Broadcast,
   BroadcastOptions,
   BroadcastState,
   DaydreamError,
-  ReconnectConfig,
   ReconnectInfo,
-  VideoConfig,
 } from "@daydreamlive/browser";
 
-export interface UseBroadcastOptions {
-  whipUrl: string;
-  reconnect?: ReconnectConfig;
-  video?: VideoConfig;
-  audio?: AudioConfig;
-  iceServers?: RTCIceServer[];
-  connectionTimeout?: number;
-  onStats?: (report: RTCStatsReport) => void;
-  statsIntervalMs?: number;
-}
+export type UseBroadcastOptions = Omit<BroadcastOptions, "stream" | "onResponse">;
 
 export type BroadcastFactory = (options: BroadcastOptions) => Broadcast;
 

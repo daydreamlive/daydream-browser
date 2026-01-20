@@ -10,20 +10,13 @@ import type {
   PlayerOptions,
   PlayerState,
   DaydreamError,
-  ReconnectConfig,
   ReconnectInfo,
 } from "@daydreamlive/browser";
 
-export interface UsePlayerOptions {
+export type UsePlayerOptions = PlayerOptions & {
   whepUrl: string | null;
-  reconnect?: ReconnectConfig;
-  iceServers?: RTCIceServer[];
-  connectionTimeout?: number;
-  skipIceGathering?: boolean;
   autoPlay?: boolean;
-  onStats?: (report: RTCStatsReport) => void;
-  statsIntervalMs?: number;
-}
+};
 
 export type PlayerFactory = (
   whepUrl: string,
