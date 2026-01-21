@@ -259,9 +259,6 @@ function ThreeSource({
     return () => {
       iframe.removeEventListener("load", handleLoad);
       clearInterval(pollInterval);
-      if (registeredRef.current) {
-        compositor.unregister("three");
-      }
       if (video) {
         video.pause();
         video.srcObject = null;
