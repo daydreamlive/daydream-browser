@@ -22,6 +22,7 @@ npm install @daydreamlive/react
 | ------- | ----------- | ---- |
 | [with-react](./examples/with-react) | Basic React hooks usage | [Live Demo](https://daydream-browser-kohl.preview.livepeer.monster) |
 | [with-compositor](./examples/with-compositor) | Canvas composition + streaming | [Live Demo](https://daydream-browser-zeta.preview.livepeer.monster) |
+| [with-vanilla](./examples/with-vanilla) | Pure JS without React | — |
 
 ## Architecture
 
